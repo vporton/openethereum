@@ -15,6 +15,7 @@ ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
+ethereum-forkid = { path = "../../../forkid" }
 ethereum-types = "0.4"
 ethkey = { path = "../../accounts/ethkey" }
 ethstore = { path = "../../accounts/ethstore" }
