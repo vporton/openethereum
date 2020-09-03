@@ -20,18 +20,16 @@
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
-		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-		"accountStartNonce": "0x00",
+		"registrar": "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0x1",
+		"networkID": "0x1",
 		"maxCodeSize": 24576,
 		"maxCodeSizeTransition": "0",
 		"eip150Transition": "0",
 		"eip160Transition": "0",
 		"eip161abcTransition": "0",
 		"eip161dTransition": "0",
-		"eip98Transition": "5",
 		"eip140Transition": "5",
 		"eip211Transition": "5",
 		"eip214Transition": "5",
@@ -53,20 +51,72 @@
 		"gasLimit": "0x1388"
 	},
 	"accounts": {
-		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
-		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
-		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000001": {
+			"balance": "1",
+			"builtin": {
+				"name": "ecrecover",
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000002": {
+			"balance": "1",
+			"builtin": {
+				"name": "sha256",
+				"pricing": {
+					"linear": {
+						"base": 60,
+						"word": 12
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000003": {
+			"balance": "1",
+			"builtin": {
+				"name": "ripemd160",
+				"pricing": {
+					"linear": {
+						"base": 600,
+						"word": 120
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000004": {
+			"balance": "1",
+			"builtin": {
+				"name": "identity",
+				"pricing": {
+					"linear": {
+						"base": 15,
+						"word": 3
+					}
+				}
+			}
+		},
 		"0000000000000000000000000000000000000006": {
 			"builtin": {
 				"name": "alt_bn128_add",
 				"pricing": {
 					"5": {
-						"price": { "alt_bn128_const_operations": { "price": 500 }}
+						"price": {
+							"alt_bn128_const_operations": {
+								"price": 500
+							}
+						}
 					},
 					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
-						"price": { "alt_bn128_const_operations": { "price": 150 }}
+						"price": {
+							"alt_bn128_const_operations": {
+								"price": 150
+							}
+						}
 					}
 				}
 			}
@@ -76,11 +126,19 @@
 				"name": "alt_bn128_mul",
 				"pricing": {
 					"5": {
-						"price": { "alt_bn128_const_operations": { "price": 40000 }}
+						"price": {
+							"alt_bn128_const_operations": {
+								"price": 40000
+							}
+						}
 					},
 					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
-						"price": { "alt_bn128_const_operations": { "price": 6000 }}
+						"price": {
+							"alt_bn128_const_operations": {
+								"price": 6000
+							}
+						}
 					}
 				}
 			}
@@ -90,11 +148,21 @@
 				"name": "alt_bn128_pairing",
 				"pricing": {
 					"5": {
-						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
+						"price": {
+							"alt_bn128_pairing": {
+								"base": 100000,
+								"pair": 80000
+							}
+						}
 					},
 					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
-						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
+						"price": {
+							"alt_bn128_pairing": {
+								"base": 45000,
+								"pair": 34000
+							}
+						}
 					}
 				}
 			}

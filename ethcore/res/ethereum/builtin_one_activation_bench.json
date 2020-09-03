@@ -13,11 +13,10 @@
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
-		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-		"accountStartNonce": "0x00",
+		"registrar": "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0x1",
+		"networkID": "0x1",
 		"eip150Transition": "0x0",
 		"eip160Transition": "0x7fffffffffffffff",
 		"eip161abcTransition": "0x7fffffffffffffff",
@@ -46,7 +45,10 @@
 			"builtin": {
 				"name": "ecrecover",
 				"pricing": {
-					"linear": { "base": 3000, "word": 0 }
+					"linear": {
+						"base": 3000,
+						"word": 0
+					}
 				}
 			}
 		}
