@@ -64,6 +64,12 @@ pub struct Schedule {
     pub create_gas: usize,
     /// Gas price for `*CALL*` opcodes
     pub call_gas: usize,
+    /// EIP-2929 COLD_SLOAD_COST 
+    pub cold_sload_gas: usize,
+    /// EIP-2929 COLD_ACCOUNT_ACCESS_COST 
+    pub cold_account_access_gas: usize,
+    /// EIP-2929 WARM_STORAGE_READ_COST 
+    pub warm_storage_read_cost: usize,
     /// Stipend for transfer for `CALL|CALLCODE` opcode when `value>0`
     pub call_stipend: usize,
     /// Additional gas required for value transfer (`CALL|CALLCODE`)
@@ -133,8 +139,8 @@ pub struct Schedule {
     pub keep_unsigned_nonce: bool,
     /// Wasm extra schedule settings, if wasm activated
     pub wasm: Option<WasmCosts>,
-    /// Precompiles
-    pub precompiles: Vec<Address>,
+    /// Enable EIP-2929 rules
+    pub eip2929: bool,
 }
 
 /// Wasm cost table
@@ -248,6 +254,9 @@ impl Schedule {
             log_topic_gas: 375,
             create_gas: 32000,
             call_gas: 700,
+            cold_sload_gas: 0,
+            cold_account_access_gas: 0,
+            warm_storage_read_cost: 0,        
             call_stipend: 2300,
             call_value_transfer_gas: 9000,
             call_new_account_gas: 25000,
@@ -277,6 +286,7 @@ impl Schedule {
             eip1706: false,
             keep_unsigned_nonce: false,
             wasm: None,
+            eip2929: false,
         }
     }
 
@@ -345,6 +355,9 @@ impl Schedule {
             log_topic_gas: 375,
             create_gas: 32000,
             call_gas: 40,
+            cold_sload_gas: 0,
+            cold_account_access_gas: 0,
+            warm_storage_read_cost: 0,
             call_stipend: 2300,
             call_value_transfer_gas: 9000,
             call_new_account_gas: 25000,
@@ -374,6 +387,7 @@ impl Schedule {
             eip1706: false,
             keep_unsigned_nonce: false,
             wasm: None,
+            eip2929: false,
         }
     }
 

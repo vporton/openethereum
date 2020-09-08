@@ -21,6 +21,9 @@ use keccak_hasher::KeccakHasher;
 use trie::TrieFactory;
 use vm::{ActionParams, Exec, Schedule};
 use wasm::WasmInterpreter;
+use std::collections::BTreeMap;
+use ethereum_types::{Address};
+use builtin::Builtin;
 
 const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
@@ -31,7 +34,7 @@ pub struct VmFactory {
 }
 
 impl VmFactory {
-    pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<dyn Exec> {
+    pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize, builtins: &BTreeMap<Address, Builtin>) -> Box<dyn Exec> {
         if schedule.wasm.is_some()
             && params.code.as_ref().map_or(false, |code| {
                 code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER
@@ -39,7 +42,7 @@ impl VmFactory {
         {
             Box::new(WasmInterpreter::new(params))
         } else {
-            self.evm.create(params, schedule, depth)
+            self.evm.create(params, schedule, depth, builtins)
         }
     }
 

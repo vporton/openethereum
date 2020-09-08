@@ -248,10 +248,6 @@ where
     fn sub_sstore_refund(&mut self, value: usize) {
         self.ext.sub_sstore_refund(value)
     }
-
-    fn precompiles(&self) -> Vec<Address> {
-        Vec::new() 
-    }
 }
 
 fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
@@ -329,7 +325,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(
                 &mut tracer,
                 &mut vm_tracer,
             ));
-            let evm = vm_factory.create(params, &schedule, 0);
+            let evm = vm_factory.create(params, &schedule, 0, machine.builtins());
             let res = evm
                 .exec(&mut ex)
                 .ok()

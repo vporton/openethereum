@@ -25,6 +25,7 @@ extern crate num_bigint;
 extern crate parity_bytes as bytes;
 extern crate parking_lot;
 extern crate vm;
+extern crate ethcore_builtin as builtin;
 
 #[macro_use]
 extern crate lazy_static;

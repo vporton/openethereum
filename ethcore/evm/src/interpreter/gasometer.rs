@@ -115,12 +115,13 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
         ext: &dyn vm::Ext,
         instruction: Instruction,
         info: &InstructionInfo,
-        stack: &dyn Stack<U256>,
+        interpreter: &super::Interpreter<Gas>,
         current_mem_size: usize,
     ) -> vm::Result<InstructionRequirements<Gas>> {
         let schedule = ext.schedule();
         let tier = info.tier.idx();
         let default_gas = Gas::from(schedule.tier_step_gas[tier]);
+        let stack = &interpreter.stack;
 
         let cost = match instruction {
             instructions::JUMPDEST => Request::Gas(Gas::from(1)),

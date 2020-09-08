@@ -184,7 +184,4 @@ pub trait Ext {
 
     /// Check if running in static context.
     fn is_static(&self) -> bool;
-
-    /// return the list of precompiles.
-    fn precompiles(&self) -> Vec<Address>;
 }

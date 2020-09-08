@@ -28,7 +28,8 @@ use ethereum_types::{Address, H256, U256};
 use hash::keccak;
 use num_bigint::BigUint;
 use std::{cmp, marker::PhantomData, mem, sync::Arc};
-use std::collections::HashSet;
+use std::collections::{HashSet, BTreeMap};
+use builtin::Builtin;
 
 use vm::{
     self, ActionParams, ActionValue, CallType, ContractCreateResult, CreateContractAddress,
@@ -197,8 +198,8 @@ pub struct Interpreter<Cost: CostType> {
     resume_output_range: Option<(U256, U256)>,
     resume_result: Option<InstructionResult<Cost>>,
     last_stack_ret_len: usize,
-    accessed_addresses: HashSet<Address>,
-    accessed_storage_keys: HashSet<(Address,[u8;32])>, 
+    accessed_addresses: Option<HashSet<Address>>,
+    accessed_storage_keys: Option<HashSet<(Address,[u8;32])>>, 
     _type: PhantomData<Cost>,
 }
 
@@ -296,6 +297,7 @@ impl<Cost: CostType> Interpreter<Cost> {
         cache: Arc<SharedCache>,
         schedule: &Schedule,
         depth: usize,
+        builtins: &BTreeMap<Address, Builtin>
     ) -> Interpreter<Cost> {
         let reader = CodeReader::new(params.code.take().expect("VM always called with code; qed"));
         let params = InterpreterParams::from(params);
@@ -307,12 +309,18 @@ impl<Cost: CostType> Interpreter<Cost> {
             .map(|gas| Gasometer::<Cost>::new(gas));
         let stack = VecStack::with_capacity(schedule.stack_limit, U256::zero());
         let return_stack = Vec::with_capacity(MAX_SUB_STACK_SIZE);
-        let accessed_storage_keys = HashSet::new();
-        let mut accessed_addresses = HashSet::new();
 
-        accessed_addresses.insert(params.origin);
-        accessed_addresses.insert(params.address);
-
+        let (accessed_addresses, accessed_storage_keys) = if schedule.eip2929 {
+            let mut accessed_addresses = HashSet::new();
+            accessed_addresses.insert(params.origin);
+            accessed_addresses.insert(params.address);
+            for address in builtins.keys() {
+                accessed_addresses.insert(*address);
+            }
+            (Some(accessed_addresses), Some(HashSet::new()))
+        } else {
+            (None,None)
+        };
 
         Interpreter {
             cache,
@@ -409,7 +417,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                     .gasometer
                     .as_mut()
                     .expect(GASOMETER_PROOF)
-                    .requirements(ext, instruction, info, &self.stack, self.mem.size())
+                    .requirements(ext, instruction, info, &self, self.mem.size())
                 {
                     Ok(t) => t,
                     Err(e) => return InterpreterResult::Done(Err(e)),
@@ -1525,6 +1533,7 @@ mod tests {
     use factory::Factory;
     use rustc_hex::FromHex;
     use std::sync::Arc;
+    use std::collections::BTreeMap;
     use vm::{
         self,
         tests::{test_finalize, FakeExt},
@@ -1533,7 +1542,7 @@ mod tests {
     use vmtype::VMType;
 
     fn interpreter(params: ActionParams, ext: &dyn vm::Ext) -> Box<dyn Exec> {
-        Factory::new(VMType::Interpreter, 1).create(params, ext.schedule(), ext.depth())
+        Factory::new(VMType::Interpreter, 1).create(params, ext.schedule(), ext.depth(), &BTreeMap::new())
     }
 
     #[test]

@@ -34,6 +34,9 @@ use vm::{
     self, ActionParams, ActionValue, CleanDustMode, CreateContractAddress, EnvInfo, ResumeCall,
     ResumeCreate, ReturnData, Schedule, TrapError,
 };
+use std::collections::BTreeMap;
+use builtin::Builtin;
+
 
 #[cfg(debug_assertions)]
 /// Roughly estimate what stack size each level of evm depth will use. (Debug build)
@@ -584,7 +587,7 @@ impl<'a> CallCreateExecutive<'a> {
                 }
 
                 let origin_info = OriginInfo::from(&params);
-                let exec = self.factory.create(params, self.schedule, self.depth);
+                let exec = self.factory.create(params, self.schedule, self.depth, self.machine.builtins());
 
                 let out = {
                     let mut ext = Self::as_externalities(
@@ -655,7 +658,7 @@ impl<'a> CallCreateExecutive<'a> {
                 }
 
                 let origin_info = OriginInfo::from(&params);
-                let exec = self.factory.create(params, self.schedule, self.depth);
+                let exec = self.factory.create(params, self.schedule, self.depth, self.machine.builtins());
 
                 let out = {
                     let mut ext = Self::as_externalities(
