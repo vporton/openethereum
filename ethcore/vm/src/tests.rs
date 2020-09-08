@@ -276,4 +276,8 @@ impl Ext for FakeExt {
     fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _gas: U256) -> bool {
         self.tracing
     }
+
+    fn precompiles(&self) -> Vec<Address> {
+        Vec::new() // [adria0] TODO
+    }
 }

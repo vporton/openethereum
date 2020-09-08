@@ -28,6 +28,7 @@ use ethereum_types::{Address, H256, U256};
 use hash::keccak;
 use num_bigint::BigUint;
 use std::{cmp, marker::PhantomData, mem, sync::Arc};
+use std::collections::HashSet;
 
 use vm::{
     self, ActionParams, ActionValue, CallType, ContractCreateResult, CreateContractAddress,
@@ -196,6 +197,8 @@ pub struct Interpreter<Cost: CostType> {
     resume_output_range: Option<(U256, U256)>,
     resume_result: Option<InstructionResult<Cost>>,
     last_stack_ret_len: usize,
+    accessed_addresses: HashSet<Address>,
+    accessed_storage_keys: HashSet<(Address,[u8;32])>, 
     _type: PhantomData<Cost>,
 }
 
@@ -304,6 +307,12 @@ impl<Cost: CostType> Interpreter<Cost> {
             .map(|gas| Gasometer::<Cost>::new(gas));
         let stack = VecStack::with_capacity(schedule.stack_limit, U256::zero());
         let return_stack = Vec::with_capacity(MAX_SUB_STACK_SIZE);
+        let accessed_storage_keys = HashSet::new();
+        let mut accessed_addresses = HashSet::new();
+
+        accessed_addresses.insert(params.origin);
+        accessed_addresses.insert(params.address);
+
 
         Interpreter {
             cache,
@@ -324,6 +333,8 @@ impl<Cost: CostType> Interpreter<Cost> {
             last_stack_ret_len: 0,
             resume_output_range: None,
             resume_result: None,
+            accessed_storage_keys,
+            accessed_addresses,
             _type: PhantomData,
         }
     }

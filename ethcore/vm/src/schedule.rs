@@ -16,6 +16,7 @@
 
 //! Cost schedule and other parameterisations for the EVM.
 
+use ethereum_types::Address;
 /// Definition of the cost schedule and other parameterisations for the EVM.
 #[derive(Debug)]
 pub struct Schedule {
@@ -132,6 +133,8 @@ pub struct Schedule {
     pub keep_unsigned_nonce: bool,
     /// Wasm extra schedule settings, if wasm activated
     pub wasm: Option<WasmCosts>,
+    /// Precompiles
+    pub precompiles: Vec<Address>,
 }
 
 /// Wasm cost table

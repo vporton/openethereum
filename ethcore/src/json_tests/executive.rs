@@ -248,6 +248,10 @@ where
     fn sub_sstore_refund(&mut self, value: usize) {
         self.ext.sub_sstore_refund(value)
     }
+
+    fn precompiles(&self) -> Vec<Address> {
+        Vec::new() 
+    }
 }
 
 fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
