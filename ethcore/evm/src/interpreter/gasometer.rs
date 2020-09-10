@@ -15,13 +15,15 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::u256_to_address;
-use ethereum_types::{H256, U256};
+use ethereum_types::{Address, H256, U256};
 use std::cmp;
 
 use evm;
 use instructions::{self, Instruction, InstructionInfo};
 use interpreter::stack::Stack;
 use vm::{self, Schedule};
+use super::stack::VecStack;
+use std::collections::HashSet;
 
 macro_rules! overflowing {
     ($x: expr) => {{
@@ -115,13 +117,33 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
         ext: &dyn vm::Ext,
         instruction: Instruction,
         info: &InstructionInfo,
-        interpreter: &super::Interpreter<Gas>,
+        stack: &VecStack<U256>,
+        current_address: &Address,
+        accessed_addresses: &Option<HashSet<Address>>,
+        accessed_storage_keys: &Option<HashSet<(Address,H256)>>,     
         current_mem_size: usize,
     ) -> vm::Result<InstructionRequirements<Gas>> {
         let schedule = ext.schedule();
+
         let tier = info.tier.idx();
         let default_gas = Gas::from(schedule.tier_step_gas[tier]);
-        let stack = &interpreter.stack;
+
+        let accessed_addresses_gas = |addr: &Address, cold_cost : usize| -> Gas {
+            if let Some(accessed_addresses) = accessed_addresses {
+                if accessed_addresses.contains(addr) {
+                    return schedule.warm_storage_read_cost.into();
+                }
+            }
+            cold_cost.into()
+        };
+        let accessed_storage_gas = |key: &H256, cold_cost : usize| -> Gas {
+            if let Some(accessed_storage_keys) = accessed_storage_keys {
+                if accessed_storage_keys.contains(&(current_address.clone(),key.clone())) {
+                    return schedule.warm_storage_read_cost.into();
+                }
+            }
+            cold_cost.into()
+        };
 
         let cost = match instruction {
             instructions::JUMPDEST => Request::Gas(Gas::from(1)),
@@ -129,12 +151,12 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                 if schedule.eip1706 && self.current_gas <= Gas::from(schedule.call_stipend) {
                     return Err(vm::Error::OutOfGas);
                 }
-                let address = H256::from(stack.peek(0));
+                let key = H256::from(stack.peek(0));
                 let newval = stack.peek(1);
-                let val = U256::from(&*ext.storage_at(&address)?);
+                let val = U256::from(&*ext.storage_at(&key)?);
 
-                let gas = if schedule.eip1283 {
-                    let orig = U256::from(&*ext.initial_storage_at(&address)?);
+                let mut gas = if schedule.eip1283 {
+                    let orig = U256::from(&*ext.initial_storage_at(&key)?);
                     calculate_eip1283_sstore_gas(schedule, &orig, &val, &newval)
                 } else {
                     if val.is_zero() && !newval.is_zero() {
@@ -145,12 +167,35 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                         schedule.sstore_reset_gas
                     }
                 };
-                Request::Gas(Gas::from(gas))
+                println!("schedule.sstore_set_gas={}",schedule.sstore_set_gas);
+                println!("schedule.sstore_reset_gas={}",schedule.sstore_reset_gas);
+                println!("gas={}",gas);
+
+                if let Some(accessed_storage_keys) = accessed_storage_keys {
+                    if !accessed_storage_keys.contains(&(current_address.clone(),key.clone())) {
+                        gas += 2100;
+                    }
+                }
+    
+                Request::Gas(gas.into())
             }
-            instructions::SLOAD => Request::Gas(Gas::from(schedule.sload_gas)),
-            instructions::BALANCE => Request::Gas(Gas::from(schedule.balance_gas)),
-            instructions::EXTCODESIZE => Request::Gas(Gas::from(schedule.extcodesize_gas)),
-            instructions::EXTCODEHASH => Request::Gas(Gas::from(schedule.extcodehash_gas)),
+            instructions::SLOAD => {
+                let key = H256::from(stack.peek(0));
+                let gas = accessed_storage_gas(&key, schedule.sload_gas);
+                Request::Gas(gas)
+            }
+            instructions::BALANCE => {
+                let address = u256_to_address(stack.peek(0));
+                Request::Gas(accessed_addresses_gas(&address,schedule.balance_gas))
+            }
+            instructions::EXTCODESIZE =>  {
+                let address = u256_to_address(stack.peek(0));
+                Request::Gas(accessed_addresses_gas(&address,schedule.extcodesize_gas))
+            }
+            instructions::EXTCODEHASH => {
+                let address = u256_to_address(stack.peek(0));
+                Request::Gas(accessed_addresses_gas(&address,schedule.extcodehash_gas))
+            }
             instructions::SUICIDE => {
                 let mut gas = Gas::from(schedule.suicide_gas);
 
@@ -165,6 +210,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                         overflowing!(gas.overflow_add(schedule.suicide_to_new_account_cost.into()));
                 }
 
+                let gas = accessed_addresses_gas(current_address, gas.as_usize());
                 Request::Gas(gas)
             }
             instructions::MSTORE | instructions::MLOAD => {
@@ -190,11 +236,15 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                     Gas::from_u256(*stack.peek(2))?,
                 )
             }
-            instructions::EXTCODECOPY => Request::GasMemCopy(
-                schedule.extcodecopy_base_gas.into(),
-                mem_needed(stack.peek(1), stack.peek(3))?,
-                Gas::from_u256(*stack.peek(3))?,
-            ),
+            instructions::EXTCODECOPY => {
+                let address = u256_to_address(stack.peek(0));
+                let gas = accessed_addresses_gas(&address, schedule.extcodecopy_base_gas);
+                Request::GasMemCopy(
+                    gas,
+                    mem_needed(stack.peek(1), stack.peek(3))?,
+                    Gas::from_u256(*stack.peek(3))?,
+                )
+            }
             instructions::LOG0
             | instructions::LOG1
             | instructions::LOG2
@@ -219,6 +269,8 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                 );
 
                 let address = u256_to_address(stack.peek(1));
+                gas = accessed_addresses_gas(&address,gas.as_usize());
+
                 let is_value_transfer = !stack.peek(2).is_zero();
 
                 if instruction == instructions::CALL
@@ -239,7 +291,10 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                 Request::GasMemProvide(gas, mem, Some(requested))
             }
             instructions::DELEGATECALL | instructions::STATICCALL => {
-                let gas = Gas::from(schedule.call_gas);
+                let mut gas = Gas::from(schedule.call_gas);
+                let address = u256_to_address(stack.peek(1));
+                gas = accessed_addresses_gas(&address, gas.as_usize());
+
                 let mem = cmp::max(
                     mem_needed(stack.peek(4), stack.peek(5))?,
                     mem_needed(stack.peek(2), stack.peek(3))?,
@@ -276,7 +331,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                 Request::Gas(gas)
             }
             instructions::BLOCKHASH => Request::Gas(Gas::from(schedule.blockhash_gas)),
-            _ => Request::Gas(default_gas),
+             _ => Request::Gas(default_gas),
         };
 
         Ok(match cost {
