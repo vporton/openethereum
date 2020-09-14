@@ -177,6 +177,10 @@ where
         Ok(ContractCreateResult::Created(contract_address, *gas))
     }
 
+    fn calc_address(&self, code: &[u8], address: CreateContractAddress) -> Option<Address> {
+        Some(contract_address(address, &self.sender, &self.nonce, &code).0)
+    }
+
     fn call(
         &mut self,
         gas: &U256,

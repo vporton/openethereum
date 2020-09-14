@@ -1609,6 +1609,7 @@ fn test_access_cost_extcodecopy_twice(factory: super::Factory) {
     assert_eq!(gas_left, U256::from(0));
 }
 
+/*
 evm_test! {test_access_cost_sload_sstore: test_access_cost_sload_sstore_int}
 fn test_access_cost_sload_sstore(factory: super::Factory) {
     // 6001 54 50
@@ -1635,7 +1636,25 @@ fn test_access_cost_sload_sstore(factory: super::Factory) {
 
     assert_eq!(gas_left, U256::from(0));
 }
+*/
 
+evm_test! {test_access_cost_cheap_expensive_cheap: test_access_cost_cheap_expensive_cheap_int}
+fn test_access_cost_cheap_expensive_cheap(factory: super::Factory) {
+    let code = hex!("60008080808060046000f15060008080808060ff6000f15060008080808060ff6000fa50").to_vec();
+    let mut params = ActionParams::default();
+    params.gas = U256::from( 2869 ) ;
+    params.code = Some(Arc::new(code));
+    let mut ext = FakeExt::new_yolo();
+    let gas_left = {
+        let builtins  = [
+            &Address::from(4),
+        ];
+            let vm = factory.create(params, ext.schedule(), ext.depth(), &builtins);
+        test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
+    };
+
+    assert_eq!(gas_left, U256::from(0));
+}
 
 fn push_two_pop_one_constantinople_test(
     factory: &super::Factory,

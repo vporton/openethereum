@@ -16,7 +16,6 @@
 
 //! Cost schedule and other parameterisations for the EVM.
 
-use ethereum_types::Address;
 /// Definition of the cost schedule and other parameterisations for the EVM.
 #[derive(Debug)]
 pub struct Schedule {
@@ -64,10 +63,6 @@ pub struct Schedule {
     pub create_gas: usize,
     /// Gas price for `*CALL*` opcodes
     pub call_gas: usize,
-    /// EIP-2929 COLD_SLOAD_COST 
-    pub cold_sload_gas: usize,
-    /// EIP-2929 COLD_ACCOUNT_ACCESS_COST 
-    pub cold_account_access_gas: usize,
     /// EIP-2929 WARM_STORAGE_READ_COST 
     pub warm_storage_read_cost: usize,
     /// Stipend for transfer for `CALL|CALLCODE` opcode when `value>0`
@@ -254,8 +249,6 @@ impl Schedule {
             log_topic_gas: 375,
             create_gas: 32000,
             call_gas: 700,
-            cold_sload_gas: 0,
-            cold_account_access_gas: 0,
             warm_storage_read_cost: 0,        
             call_stipend: 2300,
             call_value_transfer_gas: 9000,
@@ -303,7 +296,8 @@ impl Schedule {
     /// Schedule for the Constantinople fork of the Ethereum main net.
     pub fn new_constantinople() -> Schedule {
         let mut schedule = Self::new_byzantium();
-        schedule.have_bitwise_shifting = true;
+        schedule.have_bitwise_shifting = true; // EIP 145
+        schedule.have_extcodehash = true; // EIP 1052
         schedule
     }
 
@@ -326,6 +320,28 @@ impl Schedule {
         schedule
     }
 
+    /// Schedule for the YOLO testnet.
+    pub fn new_yolo() -> Schedule {
+        let mut schedule = Self::new_istanbul();
+        schedule.have_subs = true; // EIP 2315
+
+        const COLD_SLOAD_COST : usize = 2100;
+        const COLD_ACCOUNT_ACCESS_COST : usize = 2600;
+        const WARM_STORAGE_READ_COST : usize = 100;
+
+        schedule.eip2929 = true;
+        schedule.warm_storage_read_cost = WARM_STORAGE_READ_COST;
+        schedule.sload_gas = COLD_SLOAD_COST;
+        schedule.call_gas = COLD_ACCOUNT_ACCESS_COST;
+        schedule.balance_gas = COLD_ACCOUNT_ACCESS_COST;
+        schedule.extcodecopy_base_gas = COLD_ACCOUNT_ACCESS_COST;
+        schedule.extcodehash_gas = COLD_ACCOUNT_ACCESS_COST;
+        schedule.extcodesize_gas = COLD_ACCOUNT_ACCESS_COST;
+        schedule.sstore_reset_gas = 5000 - COLD_ACCOUNT_ACCESS_COST;
+
+        schedule
+    }
+    
     fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
         Schedule {
             exceptional_failed_code_deposit: efcd,
@@ -355,8 +371,6 @@ impl Schedule {
             log_topic_gas: 375,
             create_gas: 32000,
             call_gas: 40,
-            cold_sload_gas: 0,
-            cold_account_access_gas: 0,
             warm_storage_read_cost: 0,
             call_stipend: 2300,
             call_value_transfer_gas: 9000,
