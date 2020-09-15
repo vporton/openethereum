@@ -573,19 +573,8 @@ impl<Cost: CostType> Interpreter<Cost> {
         let schedule = ext.schedule();
 
         use instructions::*;
-        if (instruction == DELEGATECALL && !schedule.have_delegate_call)
-            || (instruction == CREATE2 && !schedule.have_create2)
-            || (instruction == STATICCALL && !schedule.have_static_call)
-            || ((instruction == RETURNDATACOPY || instruction == RETURNDATASIZE)
-                && !schedule.have_return_data)
-            || (instruction == REVERT && !schedule.have_revert)
-            || ((instruction == SHL || instruction == SHR || instruction == SAR)
-                && !schedule.have_bitwise_shifting)
-            || (instruction == EXTCODEHASH && !schedule.have_extcodehash)
-            || (instruction == CHAINID && !schedule.have_chain_id)
-            || (instruction == SELFBALANCE && !schedule.have_selfbalance)
-            || ((instruction == BEGINSUB || instruction == JUMPSUB || instruction == RETURNSUB)
-                && !schedule.have_subs)
+        if (instruction == BEGINSUB || instruction == JUMPSUB || instruction == RETURNSUB)
+            && !schedule.have_subs
         {
             return Err(vm::Error::BadInstruction {
                 instruction: instruction as u8,

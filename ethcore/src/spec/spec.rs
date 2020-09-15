@@ -188,13 +188,6 @@ impl CommonParams {
 
     /// Apply common spec config parameters to the schedule.
     pub fn update_schedule(&self, block_number: u64, schedule: &mut ::vm::Schedule) {
-        schedule.have_create2 = block_number >= self.eip1014_transition;
-        schedule.have_revert = block_number >= self.eip140_transition;
-        schedule.have_static_call = block_number >= self.eip214_transition;
-        schedule.have_return_data = block_number >= self.eip211_transition;
-        schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
-        schedule.have_extcodehash = block_number >= self.eip1052_transition;
-        schedule.have_chain_id = block_number >= self.eip1344_transition;
         schedule.eip1283 = (block_number >= self.eip1283_transition
             && !(block_number >= self.eip1283_disable_transition))
             || block_number >= self.eip1283_reenable_transition;
@@ -202,7 +195,6 @@ impl CommonParams {
         schedule.have_subs = block_number >= self.eip2315_transition;
 
         if block_number >= self.eip1884_transition {
-            schedule.have_selfbalance = true;
             schedule.sload_gas = 800;
             schedule.balance_gas = 700;
             schedule.extcodehash_gas = 700;

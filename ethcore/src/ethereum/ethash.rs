@@ -777,9 +777,6 @@ mod tests {
         let engine = test_spec().engine;
         let schedule = engine.schedule(10000000);
         assert!(schedule.stack_limit > 0);
-
-        let schedule = engine.schedule(100);
-        assert!(schedule.have_delegate_call);
     }
 
     #[test]

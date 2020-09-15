@@ -21,14 +21,6 @@
 pub struct Schedule {
     /// Does it support exceptional failed code deposit
     pub exceptional_failed_code_deposit: bool,
-    /// Does it have a delegate cal
-    pub have_delegate_call: bool,
-    /// Does it have a CREATE2 instruction
-    pub have_create2: bool,
-    /// Does it have a REVERT instruction
-    pub have_revert: bool,
-    /// Does it have a EXTCODEHASH instruction
-    pub have_extcodehash: bool,
     /// VM stack limit
     pub stack_limit: usize,
     /// Max number of nested calls/creates
@@ -110,16 +102,6 @@ pub struct Schedule {
     pub kill_empty: bool,
     /// Blockhash instruction gas cost.
     pub blockhash_gas: usize,
-    /// Static Call opcode enabled.
-    pub have_static_call: bool,
-    /// RETURNDATA and RETURNDATASIZE opcodes enabled.
-    pub have_return_data: bool,
-    /// SHL, SHR, SAR opcodes enabled.
-    pub have_bitwise_shifting: bool,
-    /// CHAINID opcode enabled.
-    pub have_chain_id: bool,
-    /// SELFBALANCE opcode enabled.
-    pub have_selfbalance: bool,
     /// BEGINSUB, JUMPSUB and RETURNSUB opcodes enabled.
     pub have_subs: bool,
     /// Kill basic accounts below this balance if touched.
@@ -202,12 +184,15 @@ pub enum CleanDustMode {
 impl Schedule {
     /// Schedule for the Frontier-era of the Ethereum main net.
     pub fn new_frontier() -> Schedule {
-        Self::new(false, false, 21000)
+        Self::new(false, 21000)
     }
 
     /// Schedule for the Homestead-era of the Ethereum main net.
     pub fn new_homestead() -> Schedule {
-        Self::new(true, true, 53000)
+        let mut schedule = Self::new_frontier();
+        schedule.exceptional_failed_code_deposit = true;
+        schedule.tx_create_gas = 53000;
+        schedule
     }
 
     /// Schedule for the post-EIP-150-era of the Ethereum main net.
@@ -219,15 +204,7 @@ impl Schedule {
     ) -> Schedule {
         Schedule {
             exceptional_failed_code_deposit: true,
-            have_delegate_call: true,
-            have_create2: false,
-            have_revert: false,
-            have_return_data: false,
-            have_bitwise_shifting: false,
-            have_chain_id: false,
-            have_selfbalance: false,
             have_subs: false,
-            have_extcodehash: false,
             stack_limit: 1024,
             max_depth: 1024,
             tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -268,7 +245,6 @@ impl Schedule {
             no_empty: no_empty,
             kill_empty: kill_empty,
             blockhash_gas: 20,
-            have_static_call: false,
             kill_dust: CleanDustMode::Off,
             eip1283: false,
             eip1706: false,
@@ -279,30 +255,21 @@ impl Schedule {
 
     /// Schedule for the Byzantium fork of the Ethereum main net.
     pub fn new_byzantium() -> Schedule {
-        let mut schedule = Self::new_post_eip150(24576, true, true, true);
-        schedule.have_create2 = true;
-        schedule.have_revert = true;
-        schedule.have_static_call = true;
-        schedule.have_return_data = true;
-        schedule
+        Self::new_post_eip150(24576, true, true, true)
     }
 
     /// Schedule for the Constantinople fork of the Ethereum main net.
     pub fn new_constantinople() -> Schedule {
-        let mut schedule = Self::new_byzantium();
-        schedule.have_bitwise_shifting = true;
-        schedule
+        Self::new_byzantium()
     }
 
     /// Schedule for the Istanbul fork of the Ethereum main net.
     pub fn new_istanbul() -> Schedule {
         let mut schedule = Self::new_constantinople();
-        schedule.have_chain_id = true; // EIP 1344
         schedule.tx_data_non_zero_gas = 16; // EIP 2028
         schedule.sload_gas = 800; // EIP 1884
         schedule.balance_gas = 700; // EIP 1884
         schedule.extcodehash_gas = 700; // EIP 1884
-        schedule.have_selfbalance = true; // EIP 1884
         schedule
     }
 
@@ -313,18 +280,10 @@ impl Schedule {
         schedule
     }
 
-    fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
+    fn new(efcd: bool, tcg: usize) -> Schedule {
         Schedule {
             exceptional_failed_code_deposit: efcd,
-            have_delegate_call: hdc,
-            have_create2: false,
-            have_revert: false,
-            have_return_data: false,
-            have_bitwise_shifting: false,
-            have_chain_id: false,
-            have_selfbalance: false,
             have_subs: false,
-            have_extcodehash: false,
             stack_limit: 1024,
             max_depth: 1024,
             tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -365,7 +324,6 @@ impl Schedule {
             no_empty: false,
             kill_empty: false,
             blockhash_gas: 20,
-            have_static_call: false,
             kill_dust: CleanDustMode::Off,
             eip1283: false,
             eip1706: false,
