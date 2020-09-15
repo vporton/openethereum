@@ -21,9 +21,7 @@ use keccak_hasher::KeccakHasher;
 use trie::TrieFactory;
 use vm::{ActionParams, Exec, Schedule};
 use wasm::WasmInterpreter;
-use std::collections::BTreeMap;
 use ethereum_types::{Address};
-use builtin::Builtin;
 
 const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 

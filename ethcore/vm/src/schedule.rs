@@ -16,6 +16,15 @@
 
 //! Cost schedule and other parameterisations for the EVM.
 
+// Gas per non accessed address when sload
+pub const EIP2929_COLD_SLOAD_COST : usize = 2100;
+// Gas per non accessed address accessing account from other opcodes defined in EIP2929
+pub const EIP2929_COLD_ACCOUNT_ACCESS_COST : usize= 2600;
+// Gas per already accessed address
+pub const EIP2929_WARM_STORAGE_READ_COST : usize= 100;
+// Gas per SELFDESTRUCT
+pub const EIP2929_SSTORE_RESET_GAS : usize = 5000 - EIP2929_COLD_ACCOUNT_ACCESS_COST;
+
 /// Definition of the cost schedule and other parameterisations for the EVM.
 #[derive(Debug)]
 pub struct Schedule {
@@ -63,6 +72,10 @@ pub struct Schedule {
     pub create_gas: usize,
     /// Gas price for `*CALL*` opcodes
     pub call_gas: usize,
+    /// EIP-2929 COLD_SLOAD_COST
+    pub cold_sload_cost : usize,
+    /// EIP-2929 COLD_ACCOUNT_ACCESS_COST
+    pub cold_account_access_cost : usize,
     /// EIP-2929 WARM_STORAGE_READ_COST 
     pub warm_storage_read_cost: usize,
     /// Stipend for transfer for `CALL|CALLCODE` opcode when `value>0`
@@ -249,6 +262,8 @@ impl Schedule {
             log_topic_gas: 375,
             create_gas: 32000,
             call_gas: 700,
+            cold_account_access_cost: 0,
+            cold_sload_cost: 0,
             warm_storage_read_cost: 0,        
             call_stipend: 2300,
             call_value_transfer_gas: 9000,
@@ -325,19 +340,20 @@ impl Schedule {
         let mut schedule = Self::new_istanbul();
         schedule.have_subs = true; // EIP 2315
 
-        const COLD_SLOAD_COST : usize = 2100;
-        const COLD_ACCOUNT_ACCESS_COST : usize = 2600;
-        const WARM_STORAGE_READ_COST : usize = 100;
-
+        schedule.eip1283 = true;
         schedule.eip2929 = true;
-        schedule.warm_storage_read_cost = WARM_STORAGE_READ_COST;
-        schedule.sload_gas = COLD_SLOAD_COST;
-        schedule.call_gas = COLD_ACCOUNT_ACCESS_COST;
-        schedule.balance_gas = COLD_ACCOUNT_ACCESS_COST;
-        schedule.extcodecopy_base_gas = COLD_ACCOUNT_ACCESS_COST;
-        schedule.extcodehash_gas = COLD_ACCOUNT_ACCESS_COST;
-        schedule.extcodesize_gas = COLD_ACCOUNT_ACCESS_COST;
-        schedule.sstore_reset_gas = 5000 - COLD_ACCOUNT_ACCESS_COST;
+
+        schedule.cold_sload_cost = EIP2929_COLD_SLOAD_COST;
+        schedule.cold_account_access_cost = EIP2929_COLD_ACCOUNT_ACCESS_COST;
+        schedule.warm_storage_read_cost = EIP2929_WARM_STORAGE_READ_COST;
+
+        schedule.sload_gas = EIP2929_WARM_STORAGE_READ_COST;
+        schedule.call_gas = EIP2929_COLD_ACCOUNT_ACCESS_COST;
+        schedule.balance_gas = EIP2929_COLD_ACCOUNT_ACCESS_COST;
+        schedule.extcodecopy_base_gas = EIP2929_COLD_ACCOUNT_ACCESS_COST;
+        schedule.extcodehash_gas = EIP2929_COLD_ACCOUNT_ACCESS_COST;
+        schedule.extcodesize_gas = EIP2929_COLD_ACCOUNT_ACCESS_COST;
+        schedule.sstore_reset_gas = EIP2929_SSTORE_RESET_GAS;
 
         schedule
     }
@@ -371,6 +387,8 @@ impl Schedule {
             log_topic_gas: 375,
             create_gas: 32000,
             call_gas: 40,
+            cold_account_access_cost: 0,
+            cold_sload_cost: 0,
             warm_storage_read_cost: 0,
             call_stipend: 2300,
             call_value_transfer_gas: 9000,

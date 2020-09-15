@@ -28,8 +28,7 @@ use ethereum_types::{Address, H256, U256};
 use hash::keccak;
 use num_bigint::BigUint;
 use std::{cmp, marker::PhantomData, mem, sync::Arc};
-use std::collections::{HashSet, BTreeMap};
-use builtin::Builtin;
+use std::collections::HashSet;
 
 use vm::{
     self, ActionParams, ActionValue, CallType, ContractCreateResult, CreateContractAddress,
@@ -944,8 +943,9 @@ impl<Cost: CostType> Interpreter<Cost> {
                 return Ok(InstructionResult::StopExecution);
             }
             instructions::SUICIDE => {
-                let address = self.stack.pop_back();
-                ext.suicide(&u256_to_address(&address))?;
+                let address = u256_to_address(&self.stack.pop_back());
+                self.accessed_addresses_push(address.clone());
+                ext.suicide(&address)?;
                 return Ok(InstructionResult::StopExecution);
             }
             instructions::LOG0
@@ -1564,7 +1564,6 @@ mod tests {
     use factory::Factory;
     use rustc_hex::FromHex;
     use std::sync::Arc;
-    use std::collections::BTreeMap;
     use vm::{
         self,
         tests::{test_finalize, FakeExt},

@@ -329,7 +329,8 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(
                 &mut tracer,
                 &mut vm_tracer,
             ));
-            let evm = vm_factory.create(params, &schedule, 0, machine.builtins());
+            let builtins: Vec<&Address> = machine.builtins().keys().collect();
+            let evm = vm_factory.create(params, &schedule, 0, &builtins);
             let res = evm
                 .exec(&mut ex)
                 .ok()

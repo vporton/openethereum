@@ -20,7 +20,7 @@ use factory::Factory;
 use hex_literal::hex;
 use rustc_hex::FromHex;
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     fmt::Debug,
     hash::Hash,
     str::FromStr,
@@ -1609,24 +1609,18 @@ fn test_access_cost_extcodecopy_twice(factory: super::Factory) {
     assert_eq!(gas_left, U256::from(0));
 }
 
-/*
 evm_test! {test_access_cost_sload_sstore: test_access_cost_sload_sstore_int}
 fn test_access_cost_sload_sstore(factory: super::Factory) {
-    // 6001 54 50
-    // 6011 6001 55
-    // 6011 6002 55
-    // 6011 6002 55
-    // 600254600154
-    let code = hex!("60015450 6011600155 6011600255 6011600255").to_vec();
+    // 6001 54 50    sload( 0x1) pop
+    // 6011 6001 55  sstore(loc: 0x01, val:0x11) 20000
+    // 6011 6002 55  sstore(loc: 0x02, val:0x11) 20000 + 2100
+    // 6011 6002 55  sstore(loc: 0x02, val:0x11) 100
+    // 6002 54       sload(0x2)       
+    // 6001 54       sload(0x1)
+    let code = hex!("60015450 6011600155 6011600255 6011600255 600254 600154").to_vec();
 
     let mut params = ActionParams::default();
-    params.gas = U256::from(
-        3 + 2100 + 2 
-        + 3 + 3 + 20000
-        + 3 + 3 + 22100
-        + 3 + 3 + 100
-        + 20000
-    ) ;
+    params.gas = U256::from(44529);
     params.code = Some(Arc::new(code));
     let mut ext = FakeExt::new_yolo();
     let gas_left = {
@@ -1636,7 +1630,6 @@ fn test_access_cost_sload_sstore(factory: super::Factory) {
 
     assert_eq!(gas_left, U256::from(0));
 }
-*/
 
 evm_test! {test_access_cost_cheap_expensive_cheap: test_access_cost_cheap_expensive_cheap_int}
 fn test_access_cost_cheap_expensive_cheap(factory: super::Factory) {

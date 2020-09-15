@@ -20,8 +20,6 @@ use super::{interpreter::SharedCache, vm::ActionParams, vmtype::VMType};
 use ethereum_types::{U256,Address};
 use std::sync::Arc;
 use vm::{Exec, Schedule};
-use std::collections::BTreeMap;
-use builtin::Builtin;
 
 /// Evm factory. Creates appropriate Evm.
 #[derive(Clone)]

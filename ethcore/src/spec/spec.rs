@@ -214,19 +214,21 @@ impl CommonParams {
             schedule.blockhash_gas = 800;
         }
         if block_number >= self.eip2929_transition {
-            const COLD_SLOAD_COST : usize = 2100;
-            const COLD_ACCOUNT_ACCESS_COST : usize= 2600;
-            const WARM_STORAGE_READ_COST : usize= 100;
-
             schedule.eip2929 = true;
-            schedule.warm_storage_read_cost = WARM_STORAGE_READ_COST;
-            schedule.sload_gas = COLD_SLOAD_COST;
-            schedule.call_gas = COLD_ACCOUNT_ACCESS_COST;
-            schedule.balance_gas = COLD_ACCOUNT_ACCESS_COST;
-            schedule.extcodecopy_base_gas = COLD_ACCOUNT_ACCESS_COST;
-            schedule.extcodehash_gas = COLD_ACCOUNT_ACCESS_COST;
-            schedule.extcodesize_gas = COLD_ACCOUNT_ACCESS_COST;
-            schedule.sstore_reset_gas = 5000 - COLD_ACCOUNT_ACCESS_COST;
+            schedule.eip1283 = true;
+
+            schedule.call_gas = ::vm::schedule::EIP2929_COLD_ACCOUNT_ACCESS_COST;
+            schedule.balance_gas = ::vm::schedule::EIP2929_COLD_ACCOUNT_ACCESS_COST;
+            schedule.extcodecopy_base_gas = ::vm::schedule::EIP2929_COLD_ACCOUNT_ACCESS_COST;
+            schedule.extcodehash_gas = ::vm::schedule::EIP2929_COLD_ACCOUNT_ACCESS_COST;
+            schedule.extcodesize_gas = ::vm::schedule::EIP2929_COLD_ACCOUNT_ACCESS_COST;
+
+            schedule.cold_sload_cost = ::vm::schedule::EIP2929_COLD_SLOAD_COST;
+            schedule.cold_account_access_cost = ::vm::schedule::EIP2929_COLD_ACCOUNT_ACCESS_COST;
+            schedule.warm_storage_read_cost = ::vm::schedule::EIP2929_WARM_STORAGE_READ_COST;
+
+            schedule.sload_gas = ::vm::schedule::EIP2929_WARM_STORAGE_READ_COST;
+            schedule.sstore_reset_gas =::vm::schedule:: EIP2929_SSTORE_RESET_GAS;
         }
 
         if block_number >= self.dust_protection_transition {

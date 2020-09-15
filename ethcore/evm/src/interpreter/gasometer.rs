@@ -136,14 +136,6 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
             }
             cold_cost.into()
         };
-        let accessed_storage_gas = |key: &H256, cold_cost : usize| -> Gas {
-            if let Some(accessed_storage_keys) = accessed_storage_keys {
-                if accessed_storage_keys.contains(&(current_address.clone(),key.clone())) {
-                    return schedule.warm_storage_read_cost.into();
-                }
-            }
-            cold_cost.into()
-        };
 
         let cost = match instruction {
             instructions::JUMPDEST => Request::Gas(Gas::from(1)),
@@ -155,9 +147,13 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                 let newval = stack.peek(1);
                 let val = U256::from(&*ext.storage_at(&key)?);
 
-                let mut gas = if schedule.eip1283 {
+                let is_cold = accessed_storage_keys
+                    .as_ref()
+                    .map_or(true, |set| !set.contains(&(current_address.clone(),key.clone())));
+
+                let gas = if schedule.eip1283 {
                     let orig = U256::from(&*ext.initial_storage_at(&key)?);
-                    calculate_eip1283_sstore_gas(schedule, &orig, &val, &newval)
+                    calculate_eip1283_eip2929_sstore_gas(schedule, is_cold, &orig, &val, &newval)
                 } else {
                     if val.is_zero() && !newval.is_zero() {
                         schedule.sstore_set_gas
@@ -167,22 +163,21 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                         schedule.sstore_reset_gas
                     }
                 };
-                println!("schedule.sstore_set_gas={}",schedule.sstore_set_gas);
-                println!("schedule.sstore_reset_gas={}",schedule.sstore_reset_gas);
-                println!("gas={}",gas);
-
-                if let Some(accessed_storage_keys) = accessed_storage_keys {
-                    if !accessed_storage_keys.contains(&(current_address.clone(),key.clone())) {
-                        gas += 2100;
-                    }
-                }
     
                 Request::Gas(gas.into())
             }
             instructions::SLOAD => {
                 let key = H256::from(stack.peek(0));
-                let gas = accessed_storage_gas(&key, schedule.sload_gas);
-                Request::Gas(gas)
+                let gas = if let Some(accessed_storage_keys) = accessed_storage_keys {
+                    if accessed_storage_keys.contains(&(current_address.clone(),key.clone())) {
+                        schedule.warm_storage_read_cost
+                    }  else {
+                        schedule.cold_sload_cost
+                    }
+                } else {
+                    schedule.sload_gas
+                };
+                Request::Gas(gas.into())
             }
             instructions::BALANCE => {
                 let address = u256_to_address(stack.peek(0));
@@ -210,7 +205,15 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                         overflowing!(gas.overflow_add(schedule.suicide_to_new_account_cost.into()));
                 }
 
-                let gas = accessed_addresses_gas(current_address, gas.as_usize());
+                if let Some(accessed_addresses) = accessed_addresses {
+                    // EIP2929 If the ETH recipient of a SELFDESTRUCT is not in accessed_addresses
+                    // (regardless of whether or not the amount sent is nonzero),
+                    // charge an additional COLD_ACCOUNT_ACCESS_COST on top of the existing gas costs,
+                    if !accessed_addresses.contains(&address) {
+                        gas = Gas::from(gas.as_usize() + schedule.cold_account_access_cost);
+                    }
+                }
+
                 Request::Gas(gas)
             }
             instructions::MSTORE | instructions::MLOAD => {
@@ -445,8 +448,9 @@ fn to_word_size<Gas: evm::CostType>(value: Gas) -> (Gas, bool) {
 }
 
 #[inline]
-fn calculate_eip1283_sstore_gas<Gas: evm::CostType>(
+fn calculate_eip1283_eip2929_sstore_gas<Gas: evm::CostType>(
     schedule: &Schedule,
+    is_cold: bool,
     original: &U256,
     current: &U256,
     new: &U256,
@@ -479,6 +483,11 @@ fn calculate_eip1283_sstore_gas<Gas: evm::CostType>(
             // 2.2.2.1. If original value is 0, add 19800 gas to refund counter.
             // 2.2.2.2. Otherwise, add 4800 gas to refund counter.
         }
+    } + if is_cold {
+        // EIP2929 SSTORE changes section
+        schedule.cold_sload_cost
+    } else {
+        0
     })
 }
 
