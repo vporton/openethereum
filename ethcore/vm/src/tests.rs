@@ -128,7 +128,7 @@ impl FakeExt {
         ext.schedule = Schedule::new_yolo();
         ext
     }
-    
+
     /// Alter fake externalities to allow wasm
     pub fn with_wasm(mut self) -> Self {
         self.schedule.wasm = Some(Default::default());
@@ -198,11 +198,7 @@ impl Ext for FakeExt {
         Ok(ContractCreateResult::Failed)
     }
 
-    fn calc_address(
-        &self,
-        _code: &[u8],
-        _address: CreateContractAddress,
-    ) -> Option<Address> {
+    fn calc_address(&self, _code: &[u8], _address: CreateContractAddress) -> Option<Address> {
         None
     }
 

@@ -18,17 +18,18 @@
 
 #[macro_use]
 mod informant;
+mod access_list;
 mod gasometer;
 mod memory;
 mod shared_cache;
 mod stack;
 
+use self::access_list::AccessList;
 use bytes::Bytes;
 use ethereum_types::{Address, H256, U256};
 use hash::keccak;
 use num_bigint::BigUint;
 use std::{cmp, marker::PhantomData, mem, sync::Arc};
-use std::collections::HashSet;
 
 use vm::{
     self, ActionParams, ActionValue, CallType, ContractCreateResult, CreateContractAddress,
@@ -197,8 +198,7 @@ pub struct Interpreter<Cost: CostType> {
     resume_output_range: Option<(U256, U256)>,
     resume_result: Option<InstructionResult<Cost>>,
     last_stack_ret_len: usize,
-    accessed_addresses: Option<HashSet<Address>>,
-    accessed_storage_keys: Option<HashSet<(Address,H256)>>, 
+    access_list: AccessList,
     _type: PhantomData<Cost>,
 }
 
@@ -296,7 +296,7 @@ impl<Cost: CostType> Interpreter<Cost> {
         cache: Arc<SharedCache>,
         schedule: &Schedule,
         depth: usize,
-        builtins: &[&Address]
+        builtins: &[&Address],
     ) -> Interpreter<Cost> {
         let reader = CodeReader::new(params.code.take().expect("VM always called with code; qed"));
         let params = InterpreterParams::from(params);
@@ -309,16 +309,16 @@ impl<Cost: CostType> Interpreter<Cost> {
         let stack = VecStack::with_capacity(schedule.stack_limit, U256::zero());
         let return_stack = Vec::with_capacity(MAX_SUB_STACK_SIZE);
 
-        let (accessed_addresses, accessed_storage_keys) = if schedule.eip2929 {
-            let mut accessed_addresses = HashSet::new();
-            accessed_addresses.insert(params.origin);
-            accessed_addresses.insert(params.address);
+        let access_list = if schedule.eip2929 {
+            let mut access_list = AccessList::new(true);
+            access_list.insert_address(params.origin);
+            access_list.insert_address(params.address);
             for address in builtins {
-                accessed_addresses.insert(**address);
+                access_list.insert_address(**address);
             }
-            (Some(accessed_addresses), Some(HashSet::new()))
+            access_list
         } else {
-            (None,None)
+            AccessList::new(false)
         };
 
         Interpreter {
@@ -340,8 +340,7 @@ impl<Cost: CostType> Interpreter<Cost> {
             last_stack_ret_len: 0,
             resume_output_range: None,
             resume_result: None,
-            accessed_storage_keys,
-            accessed_addresses,
+            access_list,
             _type: PhantomData,
         }
     }
@@ -416,8 +415,15 @@ impl<Cost: CostType> Interpreter<Cost> {
                     .gasometer
                     .as_mut()
                     .expect(GASOMETER_PROOF)
-                    .requirements(ext, instruction, info, &self.stack, &self.params.address, &self.accessed_addresses, &self.accessed_storage_keys, self.mem.size())
-                {
+                    .requirements(
+                        ext,
+                        instruction,
+                        info,
+                        &self.stack,
+                        &self.params.address,
+                        &self.access_list,
+                        self.mem.size(),
+                    ) {
                     Ok(t) => t,
                     Err(e) => return InterpreterResult::Done(Err(e)),
                 };
@@ -654,17 +660,6 @@ impl<Cost: CostType> Interpreter<Cost> {
         }
     }
 
-    fn accessed_addresses_push(&mut self, addr: Address) {
-        if let Some(ref mut accessed_addresses) = self.accessed_addresses {
-            accessed_addresses.insert(addr);
-        }
-    }
-    fn accessed_storage_keys_push(&mut self, addr: Address, key: H256) {
-        if let Some(ref mut accessed_storage_keys) = self.accessed_storage_keys {
-            accessed_storage_keys.insert((addr,key));
-        }
-    }
-
     fn exec_instruction(
         &mut self,
         gas: Cost,
@@ -738,14 +733,14 @@ impl<Cost: CostType> Interpreter<Cost> {
                     return Ok(InstructionResult::UnusedGas(create_gas));
                 }
 
-                let contract_address =  {
+                let contract_address = {
                     let contract_code = self.mem.read_slice(init_off, init_size);
-                    ext.calc_address(contract_code, address_scheme)  
+                    ext.calc_address(contract_code, address_scheme)
                 };
-                
+
                 if let Some(contract_address) = contract_address {
-                    self.accessed_addresses_push(contract_address);
-                }    
+                    self.access_list.insert_address(contract_address);
+                }
 
                 let contract_code = self.mem.read_slice(init_off, init_size);
 
@@ -815,7 +810,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                     ))
                     .0;
 
-                self.accessed_addresses_push(code_address);
+                self.access_list.insert_address(code_address);
 
                 // Get sender & receive addresses, check if we have balance
                 let (sender_address, receive_address, has_balance, call_type) = match instruction {
@@ -944,7 +939,7 @@ impl<Cost: CostType> Interpreter<Cost> {
             }
             instructions::SUICIDE => {
                 let address = u256_to_address(&self.stack.pop_back());
-                self.accessed_addresses_push(address.clone());
+                self.access_list.insert_address(address.clone());
                 ext.suicide(&address)?;
                 return Ok(InstructionResult::StopExecution);
             }
@@ -1033,7 +1028,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let word = U256::from(&*ext.storage_at(&key)?);
                 self.stack.push(word);
 
-                self.accessed_storage_keys_push(self.params.address, key);
+                self.access_list
+                    .insert_storage_key(self.params.address, key);
             }
             instructions::SSTORE => {
                 let key = H256::from(&self.stack.pop_back());
@@ -1056,7 +1052,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                     }
                 }
                 ext.set_storage(key, H256::from(&val))?;
-                self.accessed_storage_keys_push(self.params.address, key);
+                self.access_list
+                    .insert_storage_key(self.params.address, key);
             }
             instructions::PC => {
                 self.stack.push(U256::from(self.reader.position - 1));
@@ -1075,7 +1072,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let address = u256_to_address(&self.stack.pop_back());
                 let balance = ext.balance(&address)?;
                 self.stack.push(balance);
-                self.accessed_addresses_push(address);
+                self.access_list.insert_address(address);
             }
             instructions::CALLER => {
                 self.stack.push(address_to_u256(self.params.sender.clone()));
@@ -1114,14 +1111,14 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let address = u256_to_address(&self.stack.pop_back());
                 let len = ext.extcodesize(&address)?.unwrap_or(0);
 
-                self.accessed_addresses_push(address);
+                self.access_list.insert_address(address);
                 self.stack.push(U256::from(len));
             }
             instructions::EXTCODEHASH => {
                 let address = u256_to_address(&self.stack.pop_back());
                 let hash = ext.extcodehash(&address)?.unwrap_or_else(H256::zero);
 
-                self.accessed_addresses_push(address);
+                self.access_list.insert_address(address);
                 self.stack.push(U256::from(hash));
             }
             instructions::CALLDATACOPY => {
@@ -1157,7 +1154,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                     &mut self.stack,
                     code.as_ref().map(|c| &(*c)[..]).unwrap_or(&[]),
                 );
-                self.accessed_addresses_push(address);
+                self.access_list.insert_address(address);
             }
             instructions::GASPRICE => {
                 self.stack.push(self.params.gas_price.clone());
@@ -1572,7 +1569,12 @@ mod tests {
     use vmtype::VMType;
 
     fn interpreter(params: ActionParams, ext: &dyn vm::Ext) -> Box<dyn Exec> {
-        Factory::new(VMType::Interpreter, 1).create(params, ext.schedule(), ext.depth(), &Vec::new())
+        Factory::new(VMType::Interpreter, 1).create(
+            params,
+            ext.schedule(),
+            ext.depth(),
+            &Vec::new(),
+        )
     }
 
     #[test]

@@ -29,12 +29,11 @@ extern crate parking_lot;
 extern crate rustc_hex;
 extern crate vm;
 
-use std::collections::BTreeMap;
 use criterion::{black_box, Bencher, Criterion};
 use ethereum_types::{Address, U256};
 use evm::Factory;
 use rustc_hex::FromHex;
-use std::{str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 use vm::{tests::FakeExt, ActionParams, Ext, GasLeft, Result};
 
 criterion_group!(

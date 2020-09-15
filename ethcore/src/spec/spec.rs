@@ -228,7 +228,7 @@ impl CommonParams {
             schedule.warm_storage_read_cost = ::vm::schedule::EIP2929_WARM_STORAGE_READ_COST;
 
             schedule.sload_gas = ::vm::schedule::EIP2929_WARM_STORAGE_READ_COST;
-            schedule.sstore_reset_gas =::vm::schedule:: EIP2929_SSTORE_RESET_GAS;
+            schedule.sstore_reset_gas = ::vm::schedule::EIP2929_SSTORE_RESET_GAS;
         }
 
         if block_number >= self.dust_protection_transition {

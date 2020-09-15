@@ -17,7 +17,7 @@
 //! Evm factory.
 //!
 use super::{interpreter::SharedCache, vm::ActionParams, vmtype::VMType};
-use ethereum_types::{U256,Address};
+use ethereum_types::{Address, U256};
 use std::sync::Arc;
 use vm::{Exec, Schedule};
 
@@ -31,7 +31,13 @@ pub struct Factory {
 impl Factory {
     /// Create fresh instance of VM
     /// Might choose implementation depending on supplied gas.
-    pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize, builtins: &[&Address]) -> Box<dyn Exec> {
+    pub fn create(
+        &self,
+        params: ActionParams,
+        schedule: &Schedule,
+        depth: usize,
+        builtins: &[&Address],
+    ) -> Box<dyn Exec> {
         match self.evm {
             VMType::Interpreter => {
                 if Self::can_fit_in_usize(&params.gas) {

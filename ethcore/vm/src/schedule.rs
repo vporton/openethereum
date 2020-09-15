@@ -17,13 +17,13 @@
 //! Cost schedule and other parameterisations for the EVM.
 
 // Gas per non accessed address when sload
-pub const EIP2929_COLD_SLOAD_COST : usize = 2100;
+pub const EIP2929_COLD_SLOAD_COST: usize = 2100;
 // Gas per non accessed address accessing account from other opcodes defined in EIP2929
-pub const EIP2929_COLD_ACCOUNT_ACCESS_COST : usize= 2600;
+pub const EIP2929_COLD_ACCOUNT_ACCESS_COST: usize = 2600;
 // Gas per already accessed address
-pub const EIP2929_WARM_STORAGE_READ_COST : usize= 100;
+pub const EIP2929_WARM_STORAGE_READ_COST: usize = 100;
 // Gas per SELFDESTRUCT
-pub const EIP2929_SSTORE_RESET_GAS : usize = 5000 - EIP2929_COLD_ACCOUNT_ACCESS_COST;
+pub const EIP2929_SSTORE_RESET_GAS: usize = 5000 - EIP2929_COLD_ACCOUNT_ACCESS_COST;
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 #[derive(Debug)]
@@ -73,10 +73,10 @@ pub struct Schedule {
     /// Gas price for `*CALL*` opcodes
     pub call_gas: usize,
     /// EIP-2929 COLD_SLOAD_COST
-    pub cold_sload_cost : usize,
+    pub cold_sload_cost: usize,
     /// EIP-2929 COLD_ACCOUNT_ACCESS_COST
-    pub cold_account_access_cost : usize,
-    /// EIP-2929 WARM_STORAGE_READ_COST 
+    pub cold_account_access_cost: usize,
+    /// EIP-2929 WARM_STORAGE_READ_COST
     pub warm_storage_read_cost: usize,
     /// Stipend for transfer for `CALL|CALLCODE` opcode when `value>0`
     pub call_stipend: usize,
@@ -264,7 +264,7 @@ impl Schedule {
             call_gas: 700,
             cold_account_access_cost: 0,
             cold_sload_cost: 0,
-            warm_storage_read_cost: 0,        
+            warm_storage_read_cost: 0,
             call_stipend: 2300,
             call_value_transfer_gas: 9000,
             call_new_account_gas: 25000,
@@ -357,7 +357,7 @@ impl Schedule {
 
         schedule
     }
-    
+
     fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
         Schedule {
             exceptional_failed_code_deposit: efcd,
