@@ -16,6 +16,7 @@
 
 //! Spec params deserialization.
 
+use fastmap::H256FastSet;
 use hash::{Address, H256};
 use uint::{self, Uint};
 
@@ -99,6 +100,9 @@ pub struct Params {
     pub transaction_permission_contract: Option<Address>,
     /// Block at which the transaction permission contract should start being used.
     pub transaction_permission_contract_transition: Option<Uint>,
+
+    /// Blacklisted transactions which will just burn all gas.
+    pub transaction_blacklist: H256FastSet,
 }
 
 #[cfg(test)]

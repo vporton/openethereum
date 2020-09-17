@@ -1254,6 +1254,7 @@ name = "ethjson"
 version = "0.1.0"
 dependencies = [
  "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fastmap 0.1.0",
  "macros 0.1.0",
  "maplit 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",

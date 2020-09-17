@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate ethereum_types;
+extern crate fastmap;
 extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;

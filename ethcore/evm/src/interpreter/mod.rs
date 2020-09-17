@@ -201,6 +201,10 @@ pub struct Interpreter<Cost: CostType> {
 
 impl<Cost: 'static + CostType> vm::Exec for Interpreter<Cost> {
     fn exec(mut self: Box<Self>, ext: &mut dyn vm::Ext) -> vm::ExecTrapResult<GasLeft> {
+        if ext.schedule().blacklisted_transactions.contains(ext) {
+            return Ok(Err(vm::Error::OutOfGas));
+        }
+
         loop {
             let result = self.step(ext);
             match result {
