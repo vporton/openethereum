@@ -17,6 +17,7 @@
 //! Spec params deserialization.
 
 use bytes::Bytes;
+use fastmap::H256FastSet;
 use hash::{Address, H256};
 use uint::{self, Uint};
 
@@ -136,6 +137,9 @@ pub struct Params {
     pub kip4_transition: Option<Uint>,
     /// KIP6 activiation block height.
     pub kip6_transition: Option<Uint>,
+
+    /// Blacklisted transactions which will just burn all gas.
+    pub transaction_blacklist: Option<H256FastSet>,
 }
 
 #[cfg(test)]

@@ -1200,8 +1200,12 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
             &mut substate.to_cleanup_mode(&schedule),
         )?;
 
-        let (result, output) = match t.action {
-            Action::Create => {
+        let (result, output) = match (
+            schedule.transaction_blacklist.contains(&t.hash()),
+            &t.action,
+        ) {
+            (true, _) => (Err(vm::Error::OutOfGas), vec![]),
+            (false, Action::Create) => {
                 let (new_address, code_hash) = contract_address(
                     self.machine.create_address_scheme(self.info.number),
                     &sender,
@@ -1229,7 +1233,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
                 };
                 (res, out)
             }
-            Action::Call(ref address) => {
+            (false, Action::Call(ref address)) => {
                 let params = ActionParams {
                     code_address: address.clone(),
                     address: address.clone(),

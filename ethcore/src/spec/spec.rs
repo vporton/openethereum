@@ -21,6 +21,7 @@ use std::{collections::BTreeMap, convert::TryFrom, io::Read, path::Path, sync::A
 use bytes::Bytes;
 use ethereum_types::{Address, Bloom, H256, U256};
 use ethjson;
+use fastmap::H256FastSet;
 use hash::{keccak, KECCAK_NULL_RLP};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
@@ -156,25 +157,25 @@ pub struct CommonParams {
     pub transaction_permission_contract_transition: BlockNumber,
     /// Maximum size of transaction's RLP payload
     pub max_transaction_size: usize,
+    /// Blacklisted transactions.
+    pub transaction_blacklist: Arc<H256FastSet>,
 }
 
 impl CommonParams {
     /// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
     pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
-        if block_number < self.eip150_transition {
+        let mut schedule = if block_number < self.eip150_transition {
             ::vm::Schedule::new_homestead()
         } else {
-            let max_code_size = self.max_code_size(block_number);
-            let mut schedule = ::vm::Schedule::new_post_eip150(
-                max_code_size as _,
+            ::vm::Schedule::new_post_eip150(
+                self.max_code_size(block_number) as _,
                 block_number >= self.eip160_transition,
                 block_number >= self.eip161abc_transition,
                 block_number >= self.eip161d_transition,
-            );
-
-            self.update_schedule(block_number, &mut schedule);
-            schedule
-        }
+            )
+        };
+        self.update_schedule(block_number, &mut schedule);
+        schedule
     }
 
     /// Returns max code size at given block.
@@ -221,6 +222,7 @@ impl CommonParams {
             }
             schedule.wasm = Some(wasm);
         }
+        schedule.transaction_blacklist = self.transaction_blacklist.clone();
     }
 
     /// Return Some if the current parameters contain a bugfix hard fork not on block 0.
@@ -353,6 +355,7 @@ impl From<ethjson::spec::Params> for CommonParams {
             kip6_transition: p
                 .kip6_transition
                 .map_or_else(BlockNumber::max_value, Into::into),
+            transaction_blacklist: Arc::new(p.transaction_blacklist.unwrap_or_default()),
         }
     }
 }

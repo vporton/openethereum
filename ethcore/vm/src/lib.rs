@@ -18,6 +18,7 @@
 
 extern crate ethereum_types;
 extern crate ethjson;
+extern crate fastmap;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate patricia_trie_ethereum as ethtrie;

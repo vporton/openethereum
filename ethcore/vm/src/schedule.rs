@@ -16,6 +16,9 @@
 
 //! Cost schedule and other parameterisations for the EVM.
 
+use fastmap::H256FastSet;
+use std::sync::Arc;
+
 /// Definition of the cost schedule and other parameterisations for the EVM.
 #[derive(Debug)]
 pub struct Schedule {
@@ -114,6 +117,8 @@ pub struct Schedule {
     pub keep_unsigned_nonce: bool,
     /// Wasm extra schedule settings, if wasm activated
     pub wasm: Option<WasmCosts>,
+    /// Blacklist of transactions.
+    pub transaction_blacklist: Arc<H256FastSet>,
 }
 
 /// Wasm cost table
@@ -250,6 +255,7 @@ impl Schedule {
             eip1706: false,
             keep_unsigned_nonce: false,
             wasm: None,
+            transaction_blacklist: Default::default(),
         }
     }
 
@@ -329,6 +335,7 @@ impl Schedule {
             eip1706: false,
             keep_unsigned_nonce: false,
             wasm: None,
+            transaction_blacklist: Default::default(),
         }
     }
 
