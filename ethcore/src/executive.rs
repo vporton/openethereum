@@ -1253,6 +1253,25 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
             }
         };
 
+        if let Err(vm::Error::BadInstruction { instruction }) = result {
+            for &file in &[
+                format!(
+                    "faulty-tx-{}",
+                    evm::Instruction::from_u8(instruction).map_or_else(
+                        || format!("{:#x}", instruction),
+                        |v| v.info().name.to_string()
+                    )
+                )
+                .as_str(),
+                "faulty-tx",
+            ] {
+                use std::io::Write;
+                let mut options = std::fs::OpenOptions::new();
+                options.create(true).append(true);
+                write!(options.open(file).unwrap(), "{:#x}\n", t.hash()).unwrap();
+            }
+        }
+
         // finalize here!
         Ok(self.finalize(
             t,
