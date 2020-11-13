@@ -53,7 +53,7 @@ ethstore = { path = "crates/accounts/ethstore" }
 fetch = { path = "util/fetch" }
 node-filter = { path = "ethcore/node-filter" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
-cli-signer= { path = "cli-signer" }
+cli-signer= { path = "crates/cli-signer" }
 parity-daemonize = "0.3"
 parity-local-store = { path = "miner/local-store" }
 parity-runtime = { path = "util/runtime" }
