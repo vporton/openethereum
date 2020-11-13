@@ -57,7 +57,7 @@ cli-signer= { path = "crates/cli-signer" }
 parity-daemonize = "0.3"
 parity-local-store = { path = "crates/miner/local-store" }
 parity-runtime = { path = "util/runtime" }
-parity-rpc = { path = "rpc" }
+parity-rpc = { path = "crates/rpc" }
 parity-version = { path = "util/version" }
 parity-path = "0.1"
 dir = { path = "util/dir" }
