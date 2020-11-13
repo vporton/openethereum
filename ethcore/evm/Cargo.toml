@@ -14,7 +14,7 @@ log = "0.4"
 vm = { path = "../vm" }
 keccak-hash = "0.1"
 parking_lot = "0.7"
-memory-cache = { path = "../../util/memory-cache" }
+memory-cache = { path = "../../crates/util/memory-cache" }
 ethcore-builtin = { path = "../builtin" }
 num-bigint = "0.2"
 

@@ -12,8 +12,8 @@ heapsize = "0.4"
 keccak-hash = "0.1"
 parity-bytes = "0.1"
 rlp = { version = "0.3.0", features = ["ethereum"] }
-rlp_derive = { path = "../../util/rlp-derive" }
-unexpected = { path = "../../util/unexpected" }
+rlp_derive = { path = "../../crates/util/rlp-derive" }
+unexpected = { path = "../../crates/util/unexpected" }
 serde = "1.0"
 serde_json = "1.0"
 serde_repr = "0.1"
