@@ -34,8 +34,8 @@ jsonrpc-pubsub = "15.0.0"
 common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore" }
-ethcore-accounts = { path = "../accounts", optional = true }
-ethcore-logger = { path = "../parity/logger" }
+ethcore-accounts = { path = "../crates/accounts", optional = true }
+ethcore-logger = { path = "../bin/parity/logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
 ethcore-sync = { path = "../ethcore/sync" }
@@ -45,8 +45,8 @@ parity-crypto = "0.3.0"
 
 eip-712 = { path = "../util/EIP-712" }
 ethjson = { path = "../json" }
-ethkey = { path = "../accounts/ethkey" }
-ethstore = { path = "../accounts/ethstore" }
+ethkey = { path = "../crates/accounts/ethkey" }
+ethstore = { path = "../crates/accounts/ethstore" }
 fetch = { path = "../util/fetch" }
 keccak-hash = "0.1.2"
 parity-runtime = { path = "../util/runtime" }
@@ -57,7 +57,7 @@ vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
-ethcore-accounts = { path = "../accounts" }
+ethcore-accounts = { path = "../crates/accounts" }
 ethcore-io = { path = "../util/io" }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }

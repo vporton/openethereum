@@ -12,11 +12,11 @@ ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
 ethcore = { path = "../ethcore" }
-ethcore-accounts = { path = "../accounts", optional = true}
+ethcore-accounts = { path = "../crates/accounts", optional = true}
 ethcore-call-contract = { path = "../ethcore/call-contract" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
-ethkey = { path = "../accounts/ethkey" }
+ethkey = { path = "../crates/accounts/ethkey" }
 futures = "0.1"
 hyper = { version = "0.12", default-features = false }
 keccak-hash = "0.1"

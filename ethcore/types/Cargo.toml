@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethereum-types = "0.4"
 ethjson = { path = "../../json" }
-ethkey = { path = "../../accounts/ethkey" }
+ethkey = { path = "../../crates/accounts/ethkey" }
 heapsize = "0.4"
 keccak-hash = "0.1"
 parity-bytes = "0.1"
