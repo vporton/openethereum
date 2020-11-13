@@ -35,23 +35,23 @@ fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = "15.0.0"
 parity-bytes = "0.1"
-common-types = { path = "ethcore/types" }
-ethcore = { path = "ethcore", features = ["parity"] }
+common-types = { path = "crates/ethcore/types" }
+ethcore = { path = "crates/ethcore", features = ["parity"] }
 ethcore-accounts = { path = "crates/accounts", optional = true }
-ethcore-blockchain = { path = "ethcore/blockchain" }
-ethcore-call-contract = { path = "ethcore/call-contract"}
-ethcore-db = { path = "ethcore/db" }
+ethcore-blockchain = { path = "crates/ethcore/blockchain" }
+ethcore-call-contract = { path = "crates/ethcore/call-contract"}
+ethcore-db = { path = "crates/ethcore/db" }
 ethcore-io = { path = "crates/util/io" }
 ethcore-logger = { path = "bin/parity/logger" }
 ethcore-miner = { path = "crates/miner" }
 ethcore-network = { path = "crates/util/network" }
-ethcore-service = { path = "ethcore/service" }
-ethcore-sync = { path = "ethcore/sync" }
+ethcore-service = { path = "crates/ethcore/service" }
+ethcore-sync = { path = "crates/ethcore/sync" }
 ethereum-types = "0.4"
 ethkey = { path = "crates/accounts/ethkey" }
 ethstore = { path = "crates/accounts/ethstore" }
 fetch = { path = "crates/util/fetch" }
-node-filter = { path = "ethcore/node-filter" }
+node-filter = { path = "crates/ethcore/node-filter" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "crates/cli-signer" }
 parity-daemonize = "0.3"
@@ -130,7 +130,7 @@ lto = true
 members = [
 	"bin/ethkey",
 	"bin/ethstore",
-	"ethcore/wasm/run",
+	"crates/ethcore/wasm/run",
 	"bin/evmbin",
 	"bin/chainspec",
 	"crates/util/triehash-ethereum",

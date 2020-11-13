@@ -5,8 +5,8 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-common-types = { path = "../../../ethcore/types" }
-ethcore-io = { path = "../../../crates/util/io" }
+common-types = { path = "../../ethcore/types" }
+ethcore-io = { path = "../../util/io" }
 kvdb = "0.1"
 log = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }

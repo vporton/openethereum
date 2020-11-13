@@ -9,20 +9,20 @@ name = "openethereum-evm"
 path = "./src/main.rs"
 
 [dependencies]
-common-types = { path = "../../ethcore/types", features = ["test-helpers"] }
+common-types = { path = "../../crates/ethcore/types", features = ["test-helpers"] }
 docopt = "1.0"
 env_logger = "0.5"
-ethcore = { path = "../../ethcore", features = ["test-helpers", "json-tests", "to-pod-full"] }
+ethcore = { path = "../../crates/ethcore", features = ["test-helpers", "json-tests", "to-pod-full"] }
 ethereum-types = "0.4"
 ethjson = { path = "../../crates/json" }
-evm = { path = "../../ethcore/evm" }
+evm = { path = "../../crates/ethcore/evm" }
 panic_hook = { path = "../../crates/util/panic-hook" }
 parity-bytes = "0.1"
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-vm = { path = "../../ethcore/vm" }
+vm = { path = "../../crates/ethcore/vm" }
 
 [dev-dependencies]
 criterion = "0.3.0"
