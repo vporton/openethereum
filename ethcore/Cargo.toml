@@ -27,7 +27,7 @@ ethcore-io = { path = "../crates/util/io" }
 ethcore-miner = { path = "../crates/miner" }
 ethcore-stratum = { path = "../crates/miner/stratum", optional = true }
 ethereum-types = "0.4"
-ethjson = { path = "../json" }
+ethjson = { path = "../crates/json" }
 ethkey = { path = "../crates/accounts/ethkey" }
 evm = { path = "evm" }
 globset = "0.4"

@@ -44,7 +44,7 @@ parity-bytes = "0.1"
 parity-crypto = "0.3.0"
 
 eip-712 = { path = "../../crates/util/EIP-712" }
-ethjson = { path = "../../json" }
+ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../../crates/util/fetch" }
@@ -61,7 +61,7 @@ ethcore-accounts = { path = "../accounts" }
 ethcore-io = { path = "../../crates/util/io" }
 ethcore-network = { path = "../../crates/util/network" }
 fake-fetch = { path = "../../crates/util/fake-fetch" }
-macros = { path = "../../crates/util/macros" }
+macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = "2.0.1"
 

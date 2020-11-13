@@ -9,7 +9,7 @@ serde = "1"
 serde_json = "1"
 serde_derive = "1"
 ethereum-types = "0.4"
-ethjson = { path = "../../../json" }
+ethjson = { path = "../../../crates/json" }
 vm = { path = "../../vm" }
 wasm = { path = "../" }
 clap = "2.24"

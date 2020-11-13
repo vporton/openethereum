@@ -8,6 +8,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 parity-bytes = "0.1"
 ethereum-types = "0.4"
 patricia-trie-ethereum = { path = "../../crates/util/patricia-trie-ethereum" }
-ethjson = { path = "../../json" }
+ethjson = { path = "../../crates/json" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 keccak-hash = "0.1"
