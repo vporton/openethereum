@@ -43,7 +43,7 @@ ethcore-call-contract = { path = "ethcore/call-contract"}
 ethcore-db = { path = "ethcore/db" }
 ethcore-io = { path = "util/io" }
 ethcore-logger = { path = "bin/parity/logger" }
-ethcore-miner = { path = "miner" }
+ethcore-miner = { path = "crates/miner" }
 ethcore-network = { path = "util/network" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
@@ -55,7 +55,7 @@ node-filter = { path = "ethcore/node-filter" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "crates/cli-signer" }
 parity-daemonize = "0.3"
-parity-local-store = { path = "miner/local-store" }
+parity-local-store = { path = "crates/miner/local-store" }
 parity-runtime = { path = "util/runtime" }
 parity-rpc = { path = "rpc" }
 parity-version = { path = "util/version" }

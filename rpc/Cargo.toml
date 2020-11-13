@@ -32,11 +32,11 @@ jsonrpc-ipc-server = "15.0.0"
 jsonrpc-pubsub = "15.0.0"
 
 common-types = { path = "../ethcore/types" }
-ethash = { path = "../ethash" }
+ethash = { path = "../crates/ethash" }
 ethcore = { path = "../ethcore" }
 ethcore-accounts = { path = "../crates/accounts", optional = true }
 ethcore-logger = { path = "../bin/parity/logger" }
-ethcore-miner = { path = "../miner" }
+ethcore-miner = { path = "../crates/miner" }
 ethcore-network = { path = "../util/network" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
