@@ -37,31 +37,31 @@ ethcore = { path = "../../ethcore" }
 ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-logger = { path = "../../bin/parity/logger" }
 ethcore-miner = { path = "../miner" }
-ethcore-network = { path = "../../util/network" }
+ethcore-network = { path = "../../crates/util/network" }
 ethcore-sync = { path = "../../ethcore/sync" }
 ethereum-types = "0.4"
 parity-bytes = "0.1"
 parity-crypto = "0.3.0"
 
-eip-712 = { path = "../../util/EIP-712" }
+eip-712 = { path = "../../crates/util/EIP-712" }
 ethjson = { path = "../../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
-fetch = { path = "../../util/fetch" }
+fetch = { path = "../../crates/util/fetch" }
 keccak-hash = "0.1.2"
-parity-runtime = { path = "../../util/runtime" }
-parity-version = { path = "../../util/version" }
+parity-runtime = { path = "../../crates/util/runtime" }
+parity-version = { path = "../../crates/util/version" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
-stats = { path = "../../util/stats" }
+stats = { path = "../../crates/util/stats" }
 vm = { path = "../../ethcore/vm" }
 
 [dev-dependencies]
 ethcore = { path = "../../ethcore", features = ["test-helpers"] }
 ethcore-accounts = { path = "../accounts" }
-ethcore-io = { path = "../../util/io" }
-ethcore-network = { path = "../../util/network" }
-fake-fetch = { path = "../../util/fake-fetch" }
-macros = { path = "../../util/macros" }
+ethcore-io = { path = "../../crates/util/io" }
+ethcore-network = { path = "../../crates/util/network" }
+fake-fetch = { path = "../../crates/util/fake-fetch" }
+macros = { path = "../../crates/util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = "2.0.1"
 
