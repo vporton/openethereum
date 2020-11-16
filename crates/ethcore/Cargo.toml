@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
-blooms-db = { path = "../util/blooms-db", optional = true }
+blooms-db = { path = "../db/blooms-db", optional = true }
 common-types = { path = "types" }
 crossbeam-utils = "0.6"
 eip-152 = { version = "0.1", path = "../util/EIP-152" }
@@ -17,24 +17,24 @@ error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
-ethash = { path = "../ethash" }
+ethash = { path = "../concensus/ethash" }
 ethcore-blockchain = { path = "./blockchain" }
-ethcore-bloom-journal = { path = "../util/bloom" }
-ethcore-builtin = { path = "./builtin" }
+ethcore-bloom-journal = { path = "../db/bloom" }
+ethcore-builtin = { path = "../vm/builtin" }
 ethcore-call-contract = { path = "./call-contract" }
-ethcore-db = { path = "./db" }
-ethcore-io = { path = "../util/io" }
-ethcore-miner = { path = "../miner" }
-ethcore-stratum = { path = "../miner/stratum", optional = true }
+ethcore-db = { path = "../db/db" }
+ethcore-io = { path = "../runtime/io" }
+ethcore-miner = { path = "../concensus/miner" }
+ethcore-stratum = { path = "../concensus/miner/stratum", optional = true }
 ethereum-types = "0.4"
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
-evm = { path = "evm" }
+evm = { path = "../vm/evm" }
 globset = "0.4"
 hash-db = "0.11.0"
 heapsize = "0.4"
 itertools = "0.5"
-journaldb = { path = "../util/journaldb" }
+journaldb = { path = "../db/journaldb" }
 keccak-hash = "0.1"
 keccak-hasher = { path = "../util/keccak-hasher" }
 kvdb = "0.1"
@@ -47,18 +47,18 @@ lru-cache = "0.1"
 macros = { path = "../util/macros" }
 maplit = "1"
 memory-cache = { path = "../util/memory-cache" }
-memory-db = { path = "../util/memory-db" }
+memory-db = { path = "../db/memory-db" }
 num_cpus = "1.2"
 parity-bytes = "0.1"
 parity-snappy = "0.1"
 parking_lot = "0.7"
 trie-db = "0.11.0"
-patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
+patricia-trie-ethereum = { path = "../db/patricia-trie-ethereum" }
 rand = "0.4"
 rayon = "1.1"
 regex = "1.3.9"
 rlp = { version = "0.3.0", features = ["ethereum"] }
-rlp_derive = { path = "../util/rlp-derive" }
+rlp_derive = { path = "../net/rlp-derive" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -70,21 +70,21 @@ time-utils = { path = "../util/time-utils" }
 trace-time = "0.1"
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }
-using_queue = { path = "../miner/using-queue" }
-vm = { path = "vm" }
+using_queue = { path = "../concensus/miner/using-queue" }
+vm = { path = "../vm/vm" }
 walkdir = "2.3"
-wasm = { path = "wasm" }
+wasm = { path = "../vm/wasm" }
 
 [dev-dependencies]
-blooms-db = { path = "../util/blooms-db" }
+blooms-db = { path = "../db/blooms-db" }
 criterion = "0.2"
 env_logger = "0.5"
 ethcore-accounts = { path = "../accounts" }
-fetch = { path = "../util/fetch" }
+fetch = { path = "../net/fetch" }
 hex-literal = "0.2.1"
 kvdb-rocksdb = "0.1.3"
-parity-runtime = { path = "../util/runtime" }
-rlp_compress = { path = "../util/rlp-compress" }
+parity-runtime = { path = "../runtime/runtime" }
+rlp_compress = { path = "../net/rlp-compress" }
 tempdir = "0.3"
 trie-standardmap = "0.1"
 

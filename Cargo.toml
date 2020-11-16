@@ -10,7 +10,7 @@ authors = [
 ]
 
 [dependencies]
-blooms-db = { path = "crates/util/blooms-db" }
+blooms-db = { path = "crates/db/blooms-db" }
 log = "0.4"
 rustc-hex = "1.0"
 docopt = "1.0"
@@ -40,37 +40,37 @@ ethcore = { path = "crates/ethcore", features = ["parity"] }
 ethcore-accounts = { path = "crates/accounts", optional = true }
 ethcore-blockchain = { path = "crates/ethcore/blockchain" }
 ethcore-call-contract = { path = "crates/ethcore/call-contract"}
-ethcore-db = { path = "crates/ethcore/db" }
-ethcore-io = { path = "crates/util/io" }
-ethcore-logger = { path = "bin/parity/logger" }
-ethcore-miner = { path = "crates/miner" }
-ethcore-network = { path = "crates/util/network" }
+ethcore-db = { path = "crates/db/db" }
+ethcore-io = { path = "crates/runtime/io" }
+ethcore-logger = { path = "bin/oe/logger" }
+ethcore-miner = { path = "crates/concensus/miner" }
+ethcore-network = { path = "crates/net/network" }
 ethcore-service = { path = "crates/ethcore/service" }
 ethcore-sync = { path = "crates/ethcore/sync" }
 ethereum-types = "0.4"
 ethkey = { path = "crates/accounts/ethkey" }
 ethstore = { path = "crates/accounts/ethstore" }
-fetch = { path = "crates/util/fetch" }
+fetch = { path = "crates/net/fetch" }
 node-filter = { path = "crates/ethcore/node-filter" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
-cli-signer= { path = "crates/cli-signer" }
+cli-signer= { path = "crates/util/cli-signer" }
 parity-daemonize = "0.3"
-parity-local-store = { path = "crates/miner/local-store" }
-parity-runtime = { path = "crates/util/runtime" }
+parity-local-store = { path = "crates/concensus/miner/local-store" }
+parity-runtime = { path = "crates/runtime/runtime" }
 parity-rpc = { path = "crates/rpc" }
 parity-version = { path = "crates/util/version" }
 parity-path = "0.1"
 dir = { path = "crates/util/dir" }
 panic_hook = { path = "crates/util/panic-hook" }
 keccak-hash = "0.1"
-migration-rocksdb = { path = "crates/util/migration-rocksdb" }
+migration-rocksdb = { path = "crates/db/migration-rocksdb" }
 kvdb = "0.1"
 kvdb-rocksdb = "0.1.3"
-journaldb = { path = "crates/util/journaldb" }
+journaldb = { path = "crates/db/journaldb" }
 stats = { path = "crates/util/stats" }
 prometheus = "0.9.0"
 
-ethcore-secretstore = { path = "crates/secret-store", optional = true }
+ethcore-secretstore = { path = "crates/util/secret-store", optional = true }
 
 registrar = { path = "crates/util/registrar" }
 
@@ -81,7 +81,7 @@ rustc_version = "0.2"
 pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
 tempdir = "0.3"
-fake-fetch = { path = "crates/util/fake-fetch" }
+fake-fetch = { path = "crates/net/fake-fetch" }
 lazy_static = "1.2.0"
 
 [target.'cfg(windows)'.dependencies]
@@ -109,10 +109,10 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 memory_profiling = []
 
 [lib]
-path = "bin/parity/lib.rs"
+path = "bin/oe/lib.rs"
 
 [[bin]]
-path = "bin/parity/main.rs"
+path = "bin/oe/main.rs"
 name = "openethereum"
 
 [profile.test]
@@ -130,14 +130,9 @@ lto = true
 members = [
 	"bin/ethkey",
 	"bin/ethstore",
-	"crates/ethcore/wasm/run",
+	"bin/pwasm-test",
 	"bin/evmbin",
-	"bin/chainspec",
-	"crates/util/triehash-ethereum",
-	"crates/util/keccak-hasher",
-	"crates/util/patricia-trie-ethereum",
-	"crates/util/fastmap",
-	"crates/util/time-utils"
+	"bin/chainspec"
 ]
 
 [patch.crates-io]
