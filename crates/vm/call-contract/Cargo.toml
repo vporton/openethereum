@@ -7,6 +7,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 
 [dependencies]
-types = { path = "../types", package = "common-types" }
+types = { path = "../../ethcore/types", package = "common-types" }
 ethereum-types = "0.4"
 bytes = { version = "0.1", package = "parity-bytes" }
