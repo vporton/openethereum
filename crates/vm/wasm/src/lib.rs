@@ -34,9 +34,6 @@ mod panic_payload;
 mod parser;
 mod runtime;
 
-#[cfg(test)]
-mod tests;
-
 use vm::{ActionParams, GasLeft, ReturnData};
 use wasmi::{Error as InterpreterError, Trap};
 

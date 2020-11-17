@@ -1,22 +1,22 @@
 {
 	"chain": [
 		{
-			"path": "res/ethereum/tests/BlockchainTests",
+			"path": "res/tests/BlockchainTests",
 			"skip" : []
 		},
 		{
-			"path": "res/ethereum/tests/LegacyTests/Constantinople/BlockchainTests",
+			"path": "res/tests/LegacyTests/Constantinople/BlockchainTests",
 			"skip" : []
 		}
 	],
 	"state": [
 		{
-			"path": "res/ethereum/tests/GeneralStateTests",
+			"path": "res/tests/GeneralStateTests",
 			"skip" : []
 
 		},
 		{
-			"path": "res/ethereum/tests//LegacyTests/Constantinople/GeneralStateTests",
+			"path": "res/tests/LegacyTests/Constantinople/GeneralStateTests",
 			"skip" : []
 
 		}
@@ -24,35 +24,35 @@
 	"difficulty": [
 		{
 			"path": [
-				"res/ethereum/tests/BasicTests/difficulty.json",
-				"res/ethereum/tests/BasicTests/difficultyMainNetwork.json"
+				"res/tests/BasicTests/difficulty.json",
+				"res/tests/BasicTests/difficultyMainNetwork.json"
 			],
 			"chainspec": "Foundation"
 		}
 	],
 	"executive": [
 		{
-			"path": "res/ethereum/tests/VMTests"
+			"path": "res/tests/VMTests"
 		}
 	],
 	"transaction": [
 		{
-			"path": "res/ethereum/tests/TransactionTests"
+			"path": "res/tests/TransactionTests"
 		}
 	],
 	"trie": [
 		{
 			"path": [
-				"res/ethereum/tests/TrieTests/trietest.json",
-				"res/ethereum/tests/TrieTests/trieanyorder.json"
+				"res/tests/TrieTests/trietest.json",
+				"res/tests/TrieTests/trieanyorder.json"
 			],
 			"triespec": "Generic"
 		},
 		{
 			"path": [
-				"res/ethereum/tests/TrieTests/hex_encoded_securetrie_test.json",
-				"res/ethereum/tests/TrieTests/trietest_secureTrie.json",
-				"res/ethereum/tests/TrieTests/trieanyorder_secureTrie.json"
+				"res/tests/TrieTests/hex_encoded_securetrie_test.json",
+				"res/tests/TrieTests/trietest_secureTrie.json",
+				"res/tests/TrieTests/trieanyorder_secureTrie.json"
 			],
 			"triespec": "Secure"
 		}
