@@ -24,7 +24,7 @@ use hash::{keccak, KECCAK_EMPTY, KECCAK_NULL_RLP};
 use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
-use lru_cache::LruCache;
+use hashlink_lru_cache::LruCache;
 use pod_account::*;
 use rlp::{encode, RlpStream};
 use std::{

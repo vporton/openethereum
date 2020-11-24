@@ -43,7 +43,7 @@ kvdb-rocksdb = { version = "0.1.3", optional = true }
 lazy_static = "1.2.0"
 len-caching-lock = { path = "../util/len-caching-lock" }
 log = "0.4"
-lru-cache = "0.1"
+hashlink-lru-cache = { path = "../util/hashlink-lru-cache" }
 macros = { path = "../util/macros" }
 maplit = "1"
 memory-cache = { path = "../util/memory-cache" }

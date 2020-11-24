@@ -23,7 +23,7 @@ use engines::{
 use error::Error;
 use ethereum_types::{Address, H256};
 use ethkey::{public_to_address, recover as ec_recover, Signature};
-use lru_cache::LruCache;
+use hashlink_lru_cache::LruCache;
 use parking_lot::RwLock;
 use rlp::encode;
 use types::header::Header;

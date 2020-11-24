@@ -18,7 +18,7 @@
 
 use ethabi::FunctionOutputDecoder;
 use ethereum_types::{Address, H256, U256};
-use lru_cache::LruCache;
+use hashlink_lru_cache::LruCache;
 
 use call_contract::CallContract;
 use client::{BlockId, BlockInfo};

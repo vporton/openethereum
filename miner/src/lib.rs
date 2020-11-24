@@ -27,7 +27,7 @@ extern crate ethereum_types;
 extern crate futures;
 extern crate heapsize;
 extern crate keccak_hash as hash;
-extern crate linked_hash_map;
+extern crate hashlink;
 extern crate parity_runtime;
 extern crate parking_lot;
 #[cfg(feature = "price-info")]

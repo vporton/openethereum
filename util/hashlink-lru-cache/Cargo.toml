@@ -1,0 +1,14 @@
+[package]
+name = "hashlink-lru-cache"
+version = "0.2.0"
+license = "MIT/Apache-2.0"
+description = "A fork of lru-cache 0.1.2 that uses hashlink as backend"
+authors = [
+    "Stepan Koltsov <stepan.koltsov@gmail.com>",
+    "OpenEthereum team"
+]
+keywords = ["data-structures"]
+
+[dependencies]
+hashlink = "0.6"
+hashbrown = "0.9"

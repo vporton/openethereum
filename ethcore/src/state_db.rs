@@ -27,7 +27,7 @@ use hash_db::HashDB;
 use journaldb::JournalDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::{DBTransaction, DBValue};
-use lru_cache::LruCache;
+use hashlink_lru_cache::LruCache;
 use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
 use types::BlockNumber;

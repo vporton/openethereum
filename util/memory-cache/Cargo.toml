@@ -7,4 +7,4 @@ license = "GPL3"
 
 [dependencies]
 heapsize = "0.4"
-lru-cache = "0.1"
+hashlink-lru-cache = { path = "../hashlink-lru-cache" }

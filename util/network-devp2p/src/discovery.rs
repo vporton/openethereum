@@ -17,7 +17,7 @@
 use ethereum_types::{H256, H520};
 use ethkey::{recover, sign, KeyPair, Secret};
 use hash::keccak;
-use lru_cache::LruCache;
+use hashlink_lru_cache::LruCache;
 use network::{Error, ErrorKind, IpFilter};
 use node_table::*;
 use parity_bytes::Bytes;

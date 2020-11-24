@@ -16,7 +16,7 @@ parking_lot = "0.7"
 ethabi = "6.0"
 ethabi-derive = "6.0"
 ethabi-contract = "6.0"
-lru-cache = "0.1"
+hashlink-lru-cache = { path = "../../util/hashlink-lru-cache" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

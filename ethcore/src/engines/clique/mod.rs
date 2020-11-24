@@ -77,7 +77,7 @@ use ethereum_types::{Address, H160, H256, H64, U256};
 use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
-use lru_cache::LruCache;
+use hashlink_lru_cache::LruCache;
 use machine::{Call, EthereumMachine};
 use parking_lot::RwLock;
 use rand::Rng;
