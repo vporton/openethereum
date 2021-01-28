@@ -2,6 +2,8 @@
 
 Fast and feature-rich BSC client based on [Open-Ethereum](https://github.com/openethereum/openethereum).
 
+This fork supports BSC (Binance Smart Chain).
+
 [» Download the latest release «](https://github.com/openethereum/openethereum/releases/latest)
 
 [![GPL licensed][license-badge]][license-url]
