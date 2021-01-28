@@ -36,7 +36,7 @@ use vm::{AccessList, ActionParams, ActionValue, CallType, EnvInfo, ParamsType};
 
 use builtin::Builtin;
 use engines::{
-    AuthorityRound, BasicAuthority, Clique, EthEngine, InstantSeal, InstantSealParams, NullEngine,
+    parlia::Parlia, AuthorityRound, BasicAuthority, Clique, EthEngine, InstantSeal, InstantSealParams, NullEngine,
     DEFAULT_BLOCKHASH_CONTRACT,
 };
 use error::Error;
@@ -676,6 +676,7 @@ impl Spec {
             hard_forks.insert(1);
         }
 
+        let chain_id = params.chain_id.clone();
         let machine = Self::machine(&engine_spec, params, builtins);
 
         let engine: Arc<dyn EthEngine> = match engine_spec {
@@ -721,6 +722,10 @@ impl Spec {
             ethjson::spec::Engine::AuthorityRound(authority_round) => {
                 AuthorityRound::new(authority_round.params.into(), machine)
                     .expect("Failed to start AuthorityRound consensus engine.")
+            }
+            ethjson::spec::Engine::Parlia(parlia) => {
+                Parlia::new(parlia.params.into(), machine, chain_id)
+                    .expect("Failed to start parlia consensus engine.")
             }
         };
 

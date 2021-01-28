@@ -44,6 +44,7 @@ use rand::OsRng;
 use rlp::{PayloadInfo, Rlp};
 use rustc_hex::FromHex;
 use trie::{Trie, TrieFactory, TrieSpec};
+use engines::parlia::is_parlia;
 use types::{
     ancestry_action::AncestryAction,
     data_format::DataFormat,
@@ -773,7 +774,7 @@ impl Importer {
                             let machine = self.engine.machine();
                             let schedule = machine.schedule(env_info.number);
                             let res = Executive::new(&mut state, &env_info, &machine, &schedule)
-                                .transact(&transaction, options);
+                                .transact(&transaction, options, is_parlia(self.engine.name()));
 
                             let res = match res {
                                 Err(e) => {

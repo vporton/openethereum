@@ -16,6 +16,10 @@
 
 //! Transaction Execution environment.
 use bytes::{Bytes, BytesRef};
+use engines::{
+    self,
+    parlia::{util, util::is_system_transaction},
+};
 use ethereum_types::{Address, H256, U256, U512};
 use evm::{CallType, FinalizationResult, Finalize};
 use executed::ExecutionError;
@@ -1081,6 +1085,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
         &'a mut self,
         t: &SignedTransaction,
         options: TransactOptions<T, V>,
+        parlia_engine: bool,
     ) -> Result<Executed<T::Output, V::Output>, ExecutionError>
     where
         T: Tracer,
@@ -1092,6 +1097,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
             options.output_from_init_contract,
             options.tracer,
             options.vm_tracer,
+            parlia_engine,
         )
     }
 
@@ -1130,12 +1136,25 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
         output_from_create: bool,
         mut tracer: T,
         mut vm_tracer: V,
+        parlia_engine: bool,
     ) -> Result<Executed<T::Output, V::Output>, ExecutionError>
     where
         T: Tracer,
         V: VMTracer,
     {
         let schedule = self.schedule;
+        let base_gas_required = if parlia_engine && is_system_transaction(&t, &self.info.author) {
+            U256::from(0)
+        } else {
+            U256::from(t.gas_required(&schedule))
+        };
+
+        if t.gas < base_gas_required {
+            return Err(ExecutionError::NotEnoughBaseGas {
+                required: base_gas_required,
+                got: t.gas,
+            });
+        }
 
         // check if particualar transaction type is enabled at this block number in schedule
         match t.as_unsigned() {
@@ -1210,6 +1229,17 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
             });
         }
 
+        // validate if transaction fits into given block
+        if !parlia_engine || !util::is_system_transaction(t, &self.info.author) {
+            if self.info.gas_used + t.gas > self.info.gas_limit {
+                return Err(ExecutionError::BlockGasLimitReached {
+                    gas_limit: self.info.gas_limit,
+                    gas_used: self.info.gas_used,
+                    gas: t.gas,
+                });
+            }
+        }
+
         // TODO: we might need bigints here, or at least check overflows.
         let balance = self.state.balance(&sender)?;
         let gas_cost = t.tx().gas.full_mul(t.tx().gas_price);
@@ -1226,6 +1256,29 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
         let mut substate = Substate::from_access_list(&access_list);
 
+        // force create system account
+        if parlia_engine && util::is_system_transaction(t, &self.info.author) {
+            let system_balance = self.state.balance(&engines::SYSTEM_ACCOUNT)?;
+            if !system_balance.is_zero() {
+                self.state
+                    .transfer_balance(
+                        &engines::SYSTEM_ACCOUNT,
+                        &self.info.author,
+                        &system_balance,
+                        substate.to_cleanup_mode(&schedule),
+                    )
+                    .unwrap();
+            }
+        }
+        let balance = self.state.balance(&sender)?;
+        // avoid unaffordable transactions
+        let balance512 = U512::from(balance);
+        if balance512 < total_cost {
+            return Err(ExecutionError::NotEnoughCash {
+                required: total_cost,
+                got: balance512,
+            });
+        }
         // NOTE: there can be no invalid transactions from this point.
         if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
             self.state.inc_nonce(&sender)?;
@@ -1299,6 +1352,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
             output,
             tracer.drain(),
             vm_tracer.drain(),
+            parlia_engine,
         )?)
     }
 
@@ -1457,6 +1511,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
         output: Bytes,
         trace: Vec<T>,
         vm_trace: Option<V>,
+        parlia_engine: bool,
     ) -> Result<Executed<T, V>, ExecutionError> {
         let schedule = self.schedule;
 
@@ -1466,8 +1521,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
             "On transaction level, sstore clears refund cannot go below zero."
         );
         let sstore_refunds = U256::from(substate.sstore_clears_refund as u64);
-        // refunds from contract suicides
         let suicide_refunds =
+        // refunds from contract suicides
             U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
         let refunds_bound = sstore_refunds + suicide_refunds;
 
@@ -1497,9 +1552,18 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
             refund_value,
             sender
         );
-        // Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
-        self.state
-            .add_balance(&sender, &refund_value, CleanupMode::NoEmpty)?;
+        let reward_receiver = if parlia_engine {
+            &engines::SYSTEM_ACCOUNT
+        } else {
+            &self.info.author
+        };
+        if !fees_value.is_zero() {
+            self.state.add_balance(
+                reward_receiver,
+                &fees_value,
+                substate.to_cleanup_mode(&schedule),
+            )?;
+        }
         trace!(
             "exec::finalize: Compensating author: fees_value={}, author={}\n",
             fees_value,
