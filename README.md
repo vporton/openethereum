@@ -1,6 +1,6 @@
-# OpenEthereum
+# AnotherBsc
 
-Fast and feature-rich multi-network Ethereum client.
+Fast and feature-rich BSC client based on [Open-Ethereum](https://github.com/openethereum/openethereum).
 
 [» Download the latest release «](https://github.com/openethereum/openethereum/releases/latest)
 
@@ -316,3 +316,5 @@ An introduction has been provided in the ["So You Want to be a Core Developer" p
 ## 8. License <a id="chapter-008"></a>
 
 [LICENSE](./LICENSE)
+
+Also some code from https://github.com/binance-chain/open-bsc was used.
