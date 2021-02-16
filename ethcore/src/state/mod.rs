@@ -19,7 +19,6 @@
 //! Unconfirmed sub-states are managed with `checkpoint`s which may be canonicalized
 //! or rolled back.
 
-use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 use std::{
     cell::{RefCell, RefMut},
     collections::{hash_map::Entry, BTreeMap, BTreeSet, HashMap, HashSet},
@@ -27,10 +26,19 @@ use std::{
     sync::Arc,
 };
 
+use bytes::Bytes;
+use ethereum_types::{Address, H256, U256};
+use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
+use hash_db::{AsHashDB, HashDB};
+use kvdb::DBValue;
+use trie::{Recorder, Trie, TrieError};
+
 use error::Error;
+use ethtrie::{Result as TrieResult, TrieDB};
 use executed::{Executed, ExecutionError};
 use executive::{Executive, TransactOptions};
 use factory::{Factories, VmFactory};
+use keccak_hasher::KeccakHasher;
 use machine::EthereumMachine as Machine;
 use pod_account::*;
 use pod_state::{self, PodState};
@@ -38,33 +46,23 @@ use state_db::StateDB;
 use trace::{self, FlatTrace, VMTrace};
 use types::{
     basic_account::BasicAccount,
-    receipt::{LegacyReceipt, TransactionOutcome, TypedReceipt},
+    receipt::{Receipt, TransactionOutcome},
     state_diff::StateDiff,
     transaction::SignedTransaction,
 };
-
 use vm::EnvInfo;
 
-use bytes::Bytes;
-use ethereum_types::{Address, H256, U256};
-use hash_db::{AsHashDB, HashDB};
-use keccak_hasher::KeccakHasher;
-use kvdb::DBValue;
-
-use ethtrie::{Result as TrieResult, TrieDB};
-use trie::{Recorder, Trie, TrieError};
+pub use self::{account::Account, backend::Backend, substate::Substate};
 
 mod account;
 mod substate;
 
 pub mod backend;
 
-pub use self::{account::Account, backend::Backend, substate::Substate};
-
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome<T, V> {
     /// The receipt for the applied transaction.
-    pub receipt: TypedReceipt,
+    pub receipt: Receipt,
     /// The output of the applied transaction.
     pub output: Bytes,
     /// The trace for the applied transaction, empty if tracing was not produced.
@@ -218,7 +216,7 @@ pub fn check_proof(
     };
 
     let options = TransactOptions::with_no_tracing().save_output_from_contract();
-    match state.execute(env_info, machine, transaction, options, true) {
+    match state.execute(env_info, machine, transaction, options, true, false) {
         Ok(executed) => ProvedExecution::Complete(Box::new(executed)),
         Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
         Err(e) => ProvedExecution::Failed(e),
@@ -254,7 +252,7 @@ pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Syn
     let options = TransactOptions::with_no_tracing()
         .dont_check_nonce()
         .save_output_from_contract();
-    match state.execute(env_info, machine, transaction, options, true) {
+    match state.execute(env_info, machine, transaction, options, true, false) {
         Err(ExecutionError::Internal(_)) => None,
         Err(e) => {
             trace!(target: "state", "Proved call failed: {}", e);
@@ -911,13 +909,28 @@ impl<B: Backend> State<B> {
         machine: &Machine,
         t: &SignedTransaction,
         tracing: bool,
+        parlia_engine: bool,
     ) -> ApplyResult<FlatTrace, VMTrace> {
         if tracing {
             let options = TransactOptions::with_tracing();
-            self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
+            self.apply_with_tracing(
+                env_info,
+                machine,
+                t,
+                options.tracer,
+                options.vm_tracer,
+                parlia_engine,
+            )
         } else {
             let options = TransactOptions::with_no_tracing();
-            self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
+            self.apply_with_tracing(
+                env_info,
+                machine,
+                t,
+                options.tracer,
+                options.vm_tracer,
+                parlia_engine,
+            )
         }
     }
 
@@ -930,13 +943,14 @@ impl<B: Backend> State<B> {
         t: &SignedTransaction,
         tracer: T,
         vm_tracer: V,
+        parlia_engine: bool,
     ) -> ApplyResult<T::Output, V::Output>
     where
         T: trace::Tracer,
         V: trace::VMTracer,
     {
         let options = TransactOptions::new(tracer, vm_tracer);
-        let e = self.execute(env_info, machine, t, options, false)?;
+        let e = self.execute(env_info, machine, t, options, false, parlia_engine)?;
         let params = machine.params();
 
         let eip658 = env_info.number >= params.eip658_transition;
@@ -956,10 +970,7 @@ impl<B: Backend> State<B> {
         };
 
         let output = e.output;
-        let receipt = TypedReceipt::new(
-            t.tx_type(),
-            LegacyReceipt::new(outcome, e.cumulative_gas_used, e.logs),
-        );
+        let receipt = Receipt::new(outcome, e.cumulative_gas_used, e.logs);
         trace!(target: "state", "Transaction receipt: {:?}", receipt);
 
         Ok(ApplyOutcome {
@@ -981,6 +992,7 @@ impl<B: Backend> State<B> {
         t: &SignedTransaction,
         options: TransactOptions<T, V>,
         virt: bool,
+        parlia_engine: bool,
     ) -> Result<Executed<T::Output, V::Output>, ExecutionError>
     where
         T: trace::Tracer,
@@ -991,7 +1003,7 @@ impl<B: Backend> State<B> {
 
         match virt {
             true => e.transact_virtual(t, options),
-            false => e.transact(t, options),
+            false => e.transact(t, options, parlia_engine),
         }
     }
 
@@ -1000,7 +1012,7 @@ impl<B: Backend> State<B> {
         Ok(())
     }
 
-    /// t_nb 8.5.2 Commits our cached account changes into the trie.
+    /// Commits our cached account changes into the trie.
     pub fn commit(&mut self) -> Result<(), Error> {
         assert!(self.checkpoints.borrow().is_empty());
         // first, commit the sub trees.
@@ -1040,7 +1052,7 @@ impl<B: Backend> State<B> {
         Ok(())
     }
 
-    // t_nb 9.4 Propagate local cache into shared canonical state cache.
+    /// Propagate local cache into shared canonical state cache.
     fn propagate_to_global_cache(&mut self) {
         let mut addresses = self.cache.borrow_mut();
         trace!("Committing cache {:?} entries", addresses.len());
@@ -1110,7 +1122,7 @@ impl<B: Backend> State<B> {
         )
     }
 
-    #[cfg(feature = "to-pod-full")]
+    // #[cfg(feature = "to-pod-full")]
     /// Populate a PodAccount map from this state.
     /// Warning this is not for real time use.
     /// Use of this method requires FatDB mode to be able
@@ -1148,7 +1160,7 @@ impl<B: Backend> State<B> {
     /// values of the account to the PodAccount.
     /// This function is only intended for use in small tests or with fresh accounts.
     /// It requires FatDB.
-    #[cfg(feature = "to-pod-full")]
+    // #[cfg(feature = "to-pod-full")]
     fn account_to_pod_account(
         &self,
         account: &Account,
@@ -1572,19 +1584,22 @@ impl Clone for State<StateDB> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::{str::FromStr, sync::Arc};
+
     use ethereum_types::{Address, H256, U256};
+    use hash::{keccak, KECCAK_NULL_RLP};
+    use rustc_hex::FromHex;
+
     use ethkey::Secret;
     use evm::CallType;
-    use hash::{keccak, KECCAK_NULL_RLP};
     use machine::EthereumMachine;
-    use rustc_hex::FromHex;
     use spec::*;
-    use std::{str::FromStr, sync::Arc};
     use test_helpers::{get_temp_state, get_temp_state_db};
     use trace::{trace, FlatTrace, TraceError};
     use types::transaction::*;
     use vm::EnvInfo;
+
+    use super::*;
 
     fn secret() -> Secret {
         keccak("").into()
@@ -1606,7 +1621,7 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -1614,13 +1629,13 @@ mod tests {
             value: 100.into(),
             data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555")
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
 
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![FlatTrace {
             trace_address: Default::default(),
             subtraces: 0,
@@ -1671,20 +1686,20 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Create,
             value: 100.into(),
             data: FromHex::from_hex("5b600056").unwrap(),
-        })
+        }
         .sign(&secret(), None);
 
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![FlatTrace {
             trace_address: Default::default(),
             action: trace::Action::Create(trace::Create {
@@ -1710,14 +1725,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -1726,7 +1741,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![FlatTrace {
             trace_address: Default::default(),
             action: trace::Action::Call(trace::Call {
@@ -1757,20 +1772,20 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![FlatTrace {
             trace_address: Default::default(),
             action: trace::Action::Call(trace::Call {
@@ -1801,17 +1816,17 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = Spec::new_test_machine();
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0x1.into()),
             value: 0.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
 
         let expected_trace = vec![FlatTrace {
             trace_address: Default::default(),
@@ -1843,14 +1858,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = Spec::new_test_machine();
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 0.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -1859,7 +1874,7 @@ mod tests {
                 FromHex::from_hex("600060006000600060006001610be0f1").unwrap(),
             )
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
 
         let expected_trace = vec![FlatTrace {
             trace_address: Default::default(),
@@ -1891,14 +1906,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = Spec::new_test_machine();
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 0.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -1910,7 +1925,7 @@ mod tests {
         state
             .init_code(&0xb.into(), FromHex::from_hex("6000").unwrap())
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
 
         let expected_trace = vec![
             FlatTrace {
@@ -1961,14 +1976,14 @@ mod tests {
         info.number = 0x789b0;
         let machine = Spec::new_test_machine();
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 0.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -1983,7 +1998,7 @@ mod tests {
                 FromHex::from_hex("60056000526001601ff3").unwrap(),
             )
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
 
         let expected_trace = vec![
             FlatTrace {
@@ -2033,14 +2048,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -2049,7 +2064,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![FlatTrace {
             trace_address: Default::default(),
             action: trace::Action::Call(trace::Call {
@@ -2077,14 +2092,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -2099,7 +2114,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
 
         let expected_trace = vec![
             FlatTrace {
@@ -2149,14 +2164,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -2168,7 +2183,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![
             FlatTrace {
                 trace_address: Default::default(),
@@ -2214,14 +2229,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -2233,7 +2248,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![FlatTrace {
             trace_address: Default::default(),
             subtraces: 0,
@@ -2264,14 +2279,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![], //600480600b6000396000f35b600056
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -2286,7 +2301,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![
             FlatTrace {
                 trace_address: Default::default(),
@@ -2332,14 +2347,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -2360,7 +2375,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![
             FlatTrace {
                 trace_address: Default::default(),
@@ -2425,14 +2440,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![], //600480600b6000396000f35b600056
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -2453,7 +2468,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
 
         let expected_trace = vec![
             FlatTrace {
@@ -2516,14 +2531,14 @@ mod tests {
         info.gas_limit = 1_000_000.into();
         let machine = make_frontier_machine(5);
 
-        let t = TypedTransaction::Legacy(Transaction {
+        let t = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
             action: Action::Call(0xa.into()),
             value: 100.into(),
             data: vec![],
-        })
+        }
         .sign(&secret(), None);
 
         state
@@ -2538,7 +2553,7 @@ mod tests {
         state
             .add_balance(&t.sender(), &100.into(), CleanupMode::NoEmpty)
             .unwrap();
-        let result = state.apply(&info, &machine, &t, true).unwrap();
+        let result = state.apply(&info, &machine, &t, true, false).unwrap();
         let expected_trace = vec![
             FlatTrace {
                 trace_address: Default::default(),

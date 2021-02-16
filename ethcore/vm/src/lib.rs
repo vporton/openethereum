@@ -23,18 +23,6 @@ extern crate parity_bytes as bytes;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
 
-pub mod access_list;
-mod action_params;
-mod call_type;
-mod env_info;
-mod error;
-mod ext;
-mod return_data;
-pub mod schedule;
-
-pub mod tests;
-
-pub use access_list::AccessList;
 pub use action_params::{ActionParams, ActionValue, ParamsType};
 pub use call_type::CallType;
 pub use env_info::{EnvInfo, LastHashes};
@@ -43,8 +31,18 @@ pub use ext::{ContractCreateResult, CreateContractAddress, Ext, MessageCallResul
 pub use return_data::{GasLeft, ReturnData};
 pub use schedule::{CleanDustMode, Schedule, WasmCosts};
 
+mod action_params;
+mod call_type;
+mod env_info;
+mod error;
+mod ext;
+mod return_data;
+mod schedule;
+
+pub mod tests;
+
 /// Virtual Machine interface
-pub trait Exec {
+pub trait Exec: Send {
     /// This function should be used to execute transaction.
     /// It returns either an error, a known amount of gas left, or parameters to be used
     /// to compute the final gas left.
@@ -52,13 +50,13 @@ pub trait Exec {
 }
 
 /// Resume call interface
-pub trait ResumeCall {
+pub trait ResumeCall: Send {
     /// Resume an execution for call, returns back the Vm interface.
     fn resume_call(self: Box<Self>, result: MessageCallResult) -> Box<dyn Exec>;
 }
 
 /// Resume create interface
-pub trait ResumeCreate {
+pub trait ResumeCreate: Send {
     /// Resume an execution from create, returns back the Vm interface.
     fn resume_create(self: Box<Self>, result: ContractCreateResult) -> Box<dyn Exec>;
 }

@@ -17,9 +17,7 @@
 use ethereum_types::{H256, U256};
 use ethkey::{Generator, Random};
 use rustc_hex::FromHex;
-use types::transaction::{
-    self, SignedTransaction, Transaction, TypedTransaction, UnverifiedTransaction,
-};
+use types::transaction::{self, SignedTransaction, Transaction, UnverifiedTransaction};
 
 use pool::{verifier, VerifiedTransaction};
 
@@ -78,20 +76,20 @@ impl Tx {
         (tx1, tx2)
     }
 
-    pub fn unsigned(self) -> TypedTransaction {
-        TypedTransaction::Legacy(Transaction {
+    pub fn unsigned(self) -> Transaction {
+        Transaction {
             action: transaction::Action::Create,
             value: U256::from(100),
             data: "3331600055".from_hex().unwrap(),
             gas: self.gas.into(),
             gas_price: self.gas_price.into(),
             nonce: self.nonce.into(),
-        })
+        }
     }
 
     pub fn big_one(self) -> SignedTransaction {
         let keypair = Random.generate().unwrap();
-        let tx = TypedTransaction::Legacy(Transaction {
+        let tx = Transaction {
             action: transaction::Action::Create,
             value: U256::from(100),
             data: include_str!("../res/big_transaction.data")
@@ -100,7 +98,7 @@ impl Tx {
             gas: self.gas.into(),
             gas_price: self.gas_price.into(),
             nonce: self.nonce.into(),
-        });
+        };
         tx.sign(keypair.secret(), None)
     }
 }

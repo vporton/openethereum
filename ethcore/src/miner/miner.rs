@@ -23,7 +23,19 @@ use std::{
 
 use ansi_term::Colour;
 use bytes::Bytes;
+use ethereum_types::{Address, H256, U256};
+use parking_lot::{Mutex, RwLock};
+use rayon::prelude::*;
+
+use block::{ClosedBlock, SealedBlock};
 use call_contract::CallContract;
+use client::{
+    traits::{EngineClient, ForceUpdateSealing},
+    BlockChain, BlockId, BlockProducer, ChainInfo, ClientIoMessage, Nonce, SealedBlockImporter,
+    TransactionId, TransactionInfo,
+};
+use engines::{EngineSigner, EthEngine, Seal};
+use error::{Error, ErrorKind};
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethcore_miner::{
@@ -32,15 +44,16 @@ use ethcore_miner::{
     pool::{self, PrioritizationStrategy, QueueStatus, TransactionQueue, VerifiedTransaction},
     service_transaction_checker::ServiceTransactionChecker,
 };
-use ethereum_types::{Address, H256, U256};
+use executed::ExecutionError;
+use executive::contract_address;
 use io::IoChannel;
 use miner::{
     self,
     pool_client::{CachedNonceClient, NonceCache, PoolClient},
     MinerService,
 };
-use parking_lot::{Mutex, RwLock};
-use rayon::prelude::*;
+use spec::Spec;
+use state::State;
 use types::{
     block::Block,
     header::Header,
@@ -49,19 +62,6 @@ use types::{
     BlockNumber,
 };
 use using_queue::{GetAction, UsingQueue};
-
-use block::{ClosedBlock, SealedBlock};
-use client::{
-    traits::{EngineClient, ForceUpdateSealing},
-    BlockChain, BlockId, BlockProducer, ChainInfo, ClientIoMessage, Nonce, SealedBlockImporter,
-    TransactionId, TransactionInfo,
-};
-use engines::{EngineSigner, EthEngine, Seal};
-use error::{Error, ErrorKind};
-use executed::ExecutionError;
-use executive::contract_address;
-use spec::Spec;
-use state::State;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -1195,16 +1195,15 @@ impl miner::MinerService for Miner {
                         let receipt = &receipts[index];
                         RichReceipt {
                             from: tx.sender(),
-                            to: match tx.tx().action {
+                            to: match tx.action {
                                 Action::Create => None,
                                 Action::Call(ref address) => Some(*address),
                             },
                             transaction_hash: tx.hash(),
-                            transaction_type: tx.tx_type(),
                             transaction_index: index,
                             cumulative_gas_used: receipt.gas_used,
                             gas_used: receipt.gas_used - prev_gas,
-                            contract_address: match tx.tx().action {
+                            contract_address: match tx.action {
                                 Action::Call(_) => None,
                                 Action::Create => {
                                     let sender = tx.sender();
@@ -1213,8 +1212,8 @@ impl miner::MinerService for Miner {
                                             self.engine
                                                 .create_address_scheme(pending.header.number()),
                                             &sender,
-                                            &tx.tx().nonce,
-                                            &tx.tx().data,
+                                            &tx.nonce,
+                                            &tx.data,
                                         )
                                         .0,
                                     )
@@ -1231,7 +1230,7 @@ impl miner::MinerService for Miner {
         )
     }
 
-    // t_nb 10.4 Update sealing if required.
+    /// Update sealing if required.
     /// Prepare the block and work if the Engine does not seal internally.
     fn update_sealing<C>(&self, chain: &C, force: ForceUpdateSealing)
     where
@@ -1340,7 +1339,6 @@ impl miner::MinerService for Miner {
 		})
     }
 
-    // t_nb 10 notify miner about new include blocks
     fn chain_new_blocks<C>(
         &self,
         chain: &C,
@@ -1365,11 +1363,11 @@ impl miner::MinerService for Miner {
             self.nonce_cache.clear();
         }
 
-        // t_nb 10.1 First update gas limit in transaction queue and minimal gas price.
+        // First update gas limit in transaction queue and minimal gas price.
         let gas_limit = *chain.best_block_header().gas_limit();
         self.update_transaction_queue_limits(gas_limit);
 
-        // t_nb 10.2 Then import all transactions from retracted blocks (retracted means from side chain).
+        // Then import all transactions from retracted blocks.
         let client = self.pool_client(chain);
         {
             retracted
@@ -1380,8 +1378,7 @@ impl miner::MinerService for Miner {
 					let txs = block.transactions()
 						.into_iter()
 						.map(pool::verifier::Transaction::Retracted)
-                        .collect();
-                    // t_nb 10.2
+						.collect();
 					let _ = self.transaction_queue.import(
 						client.clone(),
 						txs,
@@ -1390,13 +1387,12 @@ impl miner::MinerService for Miner {
         }
 
         if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle) {
-            // t_nb 10.3 Reset `next_allowed_reseal` in case a block is imported.
+            // Reset `next_allowed_reseal` in case a block is imported.
             // Even if min_period is high, we will always attempt to create
             // new pending block.
             self.sealing.lock().next_allowed_reseal = Instant::now();
 
             if !is_internal_import {
-                // t_nb 10.4 if it is internal import update sealing
                 // --------------------------------------------------------------------------
                 // | NOTE Code below requires sealing locks.                                |
                 // | Make sure to release the locks before calling that method.             |
@@ -1406,7 +1402,7 @@ impl miner::MinerService for Miner {
         }
 
         if has_new_best_block {
-            // t_nb 10.5 Make sure to cull transactions after we update sealing.
+            // Make sure to cull transactions after we update sealing.
             // Not culling won't lead to old transactions being added to the block
             // (thanks to Ready), but culling can take significant amount of time,
             // so best to leave it after we create some work for miners to prevent increased
@@ -1428,9 +1424,7 @@ impl miner::MinerService for Miner {
                         &*accounts,
                         service_transaction_checker.as_ref(),
                     );
-                    // t_nb 10.5 do culling
                     queue.cull(client);
-                    // reseal is only used by InstaSeal engine
                     if engine.should_reseal_on_update() {
                         // force update_sealing here to skip `reseal_required` checks
                         chain.update_sealing(ForceUpdateSealing::Yes);
@@ -1441,16 +1435,13 @@ impl miner::MinerService for Miner {
                     warn!(target: "miner", "Error queueing cull: {:?}", e);
                 }
             } else {
-                // t_nb 10.5 do culling
                 self.transaction_queue.cull(client);
-                // reseal is only used by InstaSeal engine
                 if self.engine.should_reseal_on_update() {
                     // force update_sealing here to skip `reseal_required` checks
                     self.update_sealing(chain, ForceUpdateSealing::Yes);
                 }
             }
         }
-        // t_nb 10.6 For service transaction checker update addresses to latest block
         if let Some(ref service_transaction_checker) = self.service_transaction_checker {
             match service_transaction_checker.refresh_cache(chain) {
                 Ok(true) => {
@@ -1500,17 +1491,17 @@ impl miner::MinerService for Miner {
 mod tests {
     use std::iter::FromIterator;
 
-    use super::*;
-    use accounts::AccountProvider;
-    use ethkey::{Generator, Random};
     use hash::keccak;
     use rustc_hex::FromHex;
-    use types::BlockNumber;
 
+    use accounts::AccountProvider;
     use client::{ChainInfo, EachBlockWith, ImportSealedBlock, TestBlockChainClient};
+    use ethkey::{Generator, Random};
     use miner::{MinerService, PendingOrdering};
     use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
-    use types::transaction::{Transaction, TypedTransaction};
+    use types::{transaction::Transaction, BlockNumber};
+
+    use super::*;
 
     #[test]
     fn should_prepare_block_to_seal() {
@@ -1584,14 +1575,14 @@ mod tests {
 
     fn transaction_with_chain_id(chain_id: u64) -> SignedTransaction {
         let keypair = Random.generate().unwrap();
-        TypedTransaction::Legacy(Transaction {
+        Transaction {
             action: Action::Create,
             value: U256::zero(),
             data: "3331600055".from_hex().unwrap(),
             gas: U256::from(100_000),
             gas_price: U256::zero(),
             nonce: U256::zero(),
-        })
+        }
         .sign(keypair.secret(), Some(chain_id))
     }
 

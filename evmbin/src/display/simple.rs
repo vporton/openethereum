@@ -16,7 +16,6 @@
 
 //! Simple VM output.
 
-use super::config::Config;
 use bytes::ToPretty;
 use ethcore::trace;
 
@@ -25,25 +24,17 @@ use info as vm;
 
 /// Simple formatting informant.
 #[derive(Default)]
-pub struct Informant {
-    config: Config,
-}
-
-impl Informant {
-    pub fn new(config: Config) -> Informant {
-        Informant { config }
-    }
-}
+pub struct Informant;
 
 impl vm::Informant for Informant {
-    type Sink = Config;
+    type Sink = ();
 
     fn before_test(&mut self, name: &str, action: &str) {
         println!("Test: {} ({})", name, action);
     }
 
     fn clone_sink(&self) -> Self::Sink {
-        self.config
+        ()
     }
 
     fn finish(result: vm::RunResult<Self::Output>, _sink: &mut Self::Sink) {

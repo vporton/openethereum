@@ -34,7 +34,7 @@ use common_types::{
     },
     header::{ExtendedHeader, Header},
     log_entry::{LocalizedLogEntry, LogEntry},
-    receipt::TypedReceipt,
+    receipt::Receipt,
     transaction::LocalizedTransaction,
     tree_route::TreeRoute,
     view,
@@ -460,13 +460,13 @@ impl BlockProvider for BlockChain {
 							warn!("Block {} ({}) has different number of receipts ({}) to transactions ({}). Database corrupt?", number, hash, receipts.len(), hashes.len());
 							assert!(false);
 						}
-						let mut log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.receipt().logs.len());
+						let mut log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
 
 						let receipts_len = receipts.len();
 						hashes.reverse();
 						receipts.reverse();
 						receipts.into_iter()
-							.map(|receipt| receipt.receipt().logs.clone())
+							.map(|receipt| receipt.logs)
 							.zip(hashes)
 							.enumerate()
 							.flat_map(move |(index, (mut logs, tx_hash))| {
@@ -749,7 +749,7 @@ impl BlockChain {
                     }
 
                     if hash != bc.genesis_hash() {
-                        info!("First new block calculated: {:?}", hash);
+                        trace!("First block calculated: {:?}", hash);
                         let mut batch = db.key_value().transaction();
                         batch.put(db::COL_EXTRA, b"first", &hash);
                         db.key_value().write(batch).expect("Low level database error when writing 'first' block. Some issue with disk?");
@@ -895,7 +895,7 @@ impl BlockChain {
         &self,
         batch: &mut DBTransaction,
         block: encoded::Block,
-        receipts: Vec<TypedReceipt>,
+        receipts: Vec<Receipt>,
         parent_td: Option<U256>,
         is_best: bool,
         is_ancient: bool,
@@ -1265,7 +1265,7 @@ impl BlockChain {
         &self,
         batch: &mut DBTransaction,
         block: encoded::Block,
-        receipts: Vec<TypedReceipt>,
+        receipts: Vec<Receipt>,
         extras: ExtrasInsert,
     ) -> ImportRoute {
         let parent_hash = block.header_view().parent_hash();
@@ -1283,7 +1283,7 @@ impl BlockChain {
         &self,
         batch: &mut DBTransaction,
         block: encoded::Block,
-        receipts: Vec<TypedReceipt>,
+        receipts: Vec<Receipt>,
         route: TreeRoute,
         extras: ExtrasInsert,
     ) -> ImportRoute {
@@ -1476,7 +1476,7 @@ impl BlockChain {
         }
     }
 
-    /// t_nb 9.12 commit changed to become current greatest by applying pending insertion updates
+    /// Apply pending insertion updates
     pub fn commit(&self) {
         let mut pending_best_ancient_block = self.pending_best_ancient_block.write();
         let mut pending_best_block = self.pending_best_block.write();
@@ -1659,7 +1659,7 @@ impl BlockChain {
     /// This function returns modified block receipts.
     fn prepare_block_receipts_update(
         &self,
-        receipts: Vec<TypedReceipt>,
+        receipts: Vec<Receipt>,
         info: &BlockInfo,
     ) -> HashMap<H256, BlockReceipts> {
         let mut block_receipts = HashMap::new();
@@ -1921,8 +1921,8 @@ mod tests {
 
     use crate::generator::{BlockBuilder, BlockGenerator, BlockOptions};
     use common_types::{
-        receipt::{LegacyReceipt, TransactionOutcome, TypedReceipt},
-        transaction::{Action, Transaction, TypedTransaction},
+        receipt::{Receipt, TransactionOutcome},
+        transaction::{Action, Transaction},
     };
     use ethkey::Secret;
     use keccak_hash::keccak;
@@ -1975,7 +1975,7 @@ mod tests {
         db: &Arc<dyn BlockChainDB>,
         bc: &BlockChain,
         block: encoded::Block,
-        receipts: Vec<TypedReceipt>,
+        receipts: Vec<Receipt>,
     ) -> ImportRoute {
         insert_block_commit(db, bc, block, receipts, true)
     }
@@ -1984,7 +1984,7 @@ mod tests {
         db: &Arc<dyn BlockChainDB>,
         bc: &BlockChain,
         block: encoded::Block,
-        receipts: Vec<TypedReceipt>,
+        receipts: Vec<Receipt>,
         commit: bool,
     ) -> ImportRoute {
         let mut batch = db.key_value().transaction();
@@ -2000,7 +2000,7 @@ mod tests {
         batch: &mut DBTransaction,
         bc: &BlockChain,
         block: encoded::Block,
-        receipts: Vec<TypedReceipt>,
+        receipts: Vec<Receipt>,
     ) -> ImportRoute {
         let fork_choice = {
             let header = block.header_view();
@@ -2157,7 +2157,7 @@ mod tests {
 
     #[test]
     fn test_fork_transaction_addresses() {
-        let t1 = TypedTransaction::Legacy(Transaction {
+        let t1 = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -2166,7 +2166,7 @@ mod tests {
             data: "601080600c6000396000f3006000355415600957005b60203560003555"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
 
         let t1_hash = t1.hash();
@@ -2211,7 +2211,7 @@ mod tests {
 
     #[test]
     fn test_overwriting_transaction_addresses() {
-        let t1 = TypedTransaction::Legacy(Transaction {
+        let t1 = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -2220,10 +2220,10 @@ mod tests {
             data: "601080600c6000396000f3006000355415600957005b60203560003555"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
 
-        let t2 = TypedTransaction::Legacy(Transaction {
+        let t2 = Transaction {
             nonce: 1.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -2232,10 +2232,10 @@ mod tests {
             data: "601080600c6000396000f3006000355415600957005b60203560003555"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
 
-        let t3 = TypedTransaction::Legacy(Transaction {
+        let t3 = Transaction {
             nonce: 2.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -2244,7 +2244,7 @@ mod tests {
             data: "601080600c6000396000f3006000355415600957005b60203560003555"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
 
         let genesis = BlockBuilder::genesis();
@@ -2509,7 +2509,7 @@ mod tests {
 
     #[test]
     fn test_logs() {
-        let t1 = TypedTransaction::Legacy(Transaction {
+        let t1 = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -2518,9 +2518,9 @@ mod tests {
             data: "601080600c6000396000f3006000355415600957005b60203560003555"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
-        let t2 = TypedTransaction::Legacy(Transaction {
+        let t2 = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -2529,9 +2529,9 @@ mod tests {
             data: "601080600c6000396000f3006000355415600957005b60203560003555"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
-        let t3 = TypedTransaction::Legacy(Transaction {
+        let t3 = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -2540,9 +2540,9 @@ mod tests {
             data: "601080600c6000396000f3006000355415600957005b60203560003555"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
-        let t4 = TypedTransaction::Legacy(Transaction {
+        let t4 = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 100_000.into(),
@@ -2551,7 +2551,7 @@ mod tests {
             data: "601080600c6000396000f3006000355415600957005b60203560003555"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&secret(), None);
         let tx_hash1 = t1.hash();
         let tx_hash2 = t2.hash();
@@ -2580,7 +2580,7 @@ mod tests {
             &bc,
             b1.last().encoded(),
             vec![
-                TypedReceipt::Legacy(LegacyReceipt {
+                Receipt {
                     outcome: TransactionOutcome::StateRoot(H256::default()),
                     gas_used: 10_000.into(),
                     log_bloom: Default::default(),
@@ -2596,8 +2596,8 @@ mod tests {
                             data: vec![2],
                         },
                     ],
-                }),
-                TypedReceipt::Legacy(LegacyReceipt {
+                },
+                Receipt {
                     outcome: TransactionOutcome::StateRoot(H256::default()),
                     gas_used: 10_000.into(),
                     log_bloom: Default::default(),
@@ -2606,14 +2606,14 @@ mod tests {
                         topics: vec![],
                         data: vec![3],
                     }],
-                }),
+                },
             ],
         );
         insert_block(
             &db,
             &bc,
             b2.last().encoded(),
-            vec![TypedReceipt::Legacy(LegacyReceipt {
+            vec![Receipt {
                 outcome: TransactionOutcome::StateRoot(H256::default()),
                 gas_used: 10_000.into(),
                 log_bloom: Default::default(),
@@ -2622,13 +2622,13 @@ mod tests {
                     topics: vec![],
                     data: vec![4],
                 }],
-            })],
+            }],
         );
         insert_block(
             &db,
             &bc,
             b3.last().encoded(),
-            vec![TypedReceipt::Legacy(LegacyReceipt {
+            vec![Receipt {
                 outcome: TransactionOutcome::StateRoot(H256::default()),
                 gas_used: 10_000.into(),
                 log_bloom: Default::default(),
@@ -2637,7 +2637,7 @@ mod tests {
                     topics: vec![],
                     data: vec![5],
                 }],
-            })],
+            }],
         );
 
         // when

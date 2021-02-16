@@ -18,14 +18,13 @@
 
 use std::{io::Write, ops};
 
-use common_types::{
-    engines::epoch::Transition as EpochTransition, receipt::TypedReceipt, BlockNumber,
-};
 use ethereum_types::{H256, H264, U256};
 use heapsize::HeapSizeOf;
 use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use rlp;
-use rlp_derive::{RlpDecodable, RlpEncodable};
+
+use common_types::{engines::epoch::Transition as EpochTransition, receipt::Receipt, BlockNumber};
+use rlp_derive::{RlpDecodable, RlpDecodableWrapper, RlpEncodable, RlpEncodableWrapper};
 
 use crate::db::Key;
 
@@ -237,27 +236,15 @@ impl HeapSizeOf for TransactionAddress {
 }
 
 /// Contains all block receipts.
-#[derive(Clone)]
+#[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct BlockReceipts {
     /// Block receipts
-    pub receipts: Vec<TypedReceipt>,
-}
-
-impl rlp::Encodable for BlockReceipts {
-    fn rlp_append(&self, s: &mut rlp::RlpStream) {
-        TypedReceipt::rlp_append_list(s, &self.receipts);
-    }
-}
-
-impl rlp::Decodable for BlockReceipts {
-    fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
-        Ok(BlockReceipts::new(TypedReceipt::decode_rlp_list(rlp)?))
-    }
+    pub receipts: Vec<Receipt>,
 }
 
 impl BlockReceipts {
     /// Create new block receipts wrapper.
-    pub fn new(receipts: Vec<TypedReceipt>) -> Self {
+    pub fn new(receipts: Vec<Receipt>) -> Self {
         BlockReceipts { receipts: receipts }
     }
 }

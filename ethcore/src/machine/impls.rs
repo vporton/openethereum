@@ -23,17 +23,16 @@ use std::{
 };
 
 use ethereum_types::{Address, H256, U256};
+use rlp::Rlp;
 use types::{
     header::Header,
     transaction::{
-        self, SignedTransaction, TypedTransaction, UnverifiedTransaction, SYSTEM_ADDRESS,
-        UNSIGNED_SENDER,
+        self, SignedTransaction, UnverifiedTransaction, SYSTEM_ADDRESS, UNSIGNED_SENDER,
     },
     BlockNumber,
 };
 use vm::{
-    AccessList, ActionParams, ActionValue, CallType, CreateContractAddress, EnvInfo, ParamsType,
-    Schedule,
+    ActionParams, ActionValue, CallType, CreateContractAddress, EnvInfo, ParamsType, Schedule,
 };
 
 use block::ExecutedBlock;
@@ -202,7 +201,6 @@ impl EthereumMachine {
             data,
             call_type: call_type.unwrap_or(CallType::Call),
             params_type: ParamsType::Separate,
-            access_list: AccessList::default(),
         };
         let schedule = self.schedule(env_info.number);
         let mut ex = Executive::new(&mut state, &env_info, self, &schedule);
@@ -238,7 +236,7 @@ impl EthereumMachine {
         Ok(())
     }
 
-    // t_nb 8.1.3 Logic to perform on a new block: updating last hashes and the DAO
+    /// Logic to perform on a new block: updating last hashes and the DAO
     /// fork, for ethash.
     pub fn on_new_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
         self.push_last_hash(block)?;
@@ -455,27 +453,17 @@ impl EthereumMachine {
     pub fn decode_transaction(
         &self,
         transaction: &[u8],
-        schedule: &Schedule,
     ) -> Result<UnverifiedTransaction, transaction::Error> {
-        if transaction.len() > self.params().max_transaction_size {
+        let rlp = Rlp::new(&transaction);
+        if rlp.as_raw().len() > self.params().max_transaction_size {
             debug!(
                 "Rejected oversized transaction of {} bytes",
-                transaction.len()
+                rlp.as_raw().len()
             );
             return Err(transaction::Error::TooBig);
         }
-
-        let tx = TypedTransaction::decode(transaction)
-            .map_err(|e| transaction::Error::InvalidRlp(e.to_string()))?;
-
-        match tx.tx_type() {
-            transaction::TypedTxId::AccessList if schedule.eip2930 => {
-                return Err(transaction::Error::TransactionTypeNotEnabled)
-            }
-            _ => (),
-        };
-
-        Ok(tx)
+        rlp.as_val()
+            .map_err(|e| transaction::Error::InvalidRlp(e.to_string()))
     }
 }
 
@@ -486,7 +474,7 @@ pub struct AuxiliaryData<'a> {
     /// The full block bytes, including the header.
     pub bytes: Option<&'a [u8]>,
     /// The block receipts.
-    pub receipts: Option<&'a [::types::receipt::TypedReceipt]>,
+    pub receipts: Option<&'a [::types::receipt::Receipt]>,
 }
 
 /// Type alias for a function we can make calls through synchronously.
@@ -560,7 +548,7 @@ mod tests {
     fn should_disallow_unsigned_transactions() {
         let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080";
         let transaction: UnverifiedTransaction =
-            TypedTransaction::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
+            ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
         let spec = ::ethereum::new_ropsten_test();
         let ethparams = get_default_ethash_extensions();
 

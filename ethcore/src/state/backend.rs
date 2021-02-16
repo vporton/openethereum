@@ -28,11 +28,12 @@ use std::{
 
 use ethereum_types::{Address, H256};
 use hash_db::{AsHashDB, HashDB};
+use kvdb::DBValue;
+use parking_lot::Mutex;
+
 use journaldb::AsKeyedHashDB;
 use keccak_hasher::KeccakHasher;
-use kvdb::DBValue;
 use memory_db::MemoryDB;
-use parking_lot::Mutex;
 use state::Account;
 
 /// State backend. See module docs for more details.
@@ -43,7 +44,7 @@ pub trait Backend: Send {
     /// Treat the backend as a writeable hashdb.
     fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue>;
 
-    /// t_nb 9.4 Add an account entry to the cache.
+    /// Add an account entry to the cache.
     fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool);
 
     /// Add a global code cache entry. This doesn't need to worry about canonicality because

@@ -18,7 +18,6 @@
 
 use std::time::Duration;
 
-pub mod config;
 pub mod json;
 pub mod simple;
 pub mod std_json;

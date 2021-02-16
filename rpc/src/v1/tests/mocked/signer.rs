@@ -22,7 +22,8 @@ use accounts::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
-use types::transaction::{Action, SignedTransaction, Transaction, TypedTransaction};
+use rlp::encode;
+use types::transaction::{Action, SignedTransaction, Transaction};
 
 use jsonrpc_core::IoHandler;
 use serde_json;
@@ -91,7 +92,6 @@ fn should_return_list_of_items_to_confirm() {
         .signer
         .add_request(
             ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: Address::from(1),
                 used_default_from: false,
                 to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
@@ -101,7 +101,6 @@ fn should_return_list_of_items_to_confirm() {
                 data: vec![],
                 nonce: None,
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
@@ -138,7 +137,6 @@ fn should_reject_transaction_from_queue_without_dispatching() {
         .signer
         .add_request(
             ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: Address::from(1),
                 used_default_from: false,
                 to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
@@ -148,7 +146,6 @@ fn should_reject_transaction_from_queue_without_dispatching() {
                 data: vec![],
                 nonce: None,
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
@@ -176,7 +173,6 @@ fn should_not_remove_transaction_if_password_is_invalid() {
         .signer
         .add_request(
             ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: Address::from(1),
                 used_default_from: false,
                 to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
@@ -186,7 +182,6 @@ fn should_not_remove_transaction_if_password_is_invalid() {
                 data: vec![],
                 nonce: None,
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
@@ -242,7 +237,6 @@ fn should_confirm_transaction_and_dispatch() {
         .signer
         .add_request(
             ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: address,
                 used_default_from: false,
                 to: Some(recipient),
@@ -252,28 +246,24 @@ fn should_confirm_transaction_and_dispatch() {
                 data: vec![],
                 nonce: None,
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
         .unwrap();
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::zero(),
         gas_price: U256::from(0x1000),
         gas: U256::from(0x50505),
         action: Action::Call(recipient),
         value: U256::from(0x1),
         data: vec![],
-    });
+    };
     tester
         .accounts
         .unlock_account_temporarily(address, "test".into())
         .unwrap();
-    let signature = tester
-        .accounts
-        .sign(address, None, t.signature_hash(None))
-        .unwrap();
+    let signature = tester.accounts.sign(address, None, t.hash(None)).unwrap();
     let t = t.with_signature(signature, None);
 
     assert_eq!(tester.signer.requests().len(), 1);
@@ -307,7 +297,6 @@ fn should_alter_the_sender_and_nonce() {
         .signer
         .add_request(
             ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: 0.into(),
                 used_default_from: false,
                 to: Some(recipient),
@@ -317,25 +306,24 @@ fn should_alter_the_sender_and_nonce() {
                 data: vec![],
                 nonce: Some(10.into()),
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
         .unwrap();
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::zero(),
         gas_price: U256::from(0x1000),
         gas: U256::from(0x50505),
         action: Action::Call(recipient),
         value: U256::from(0x1),
         data: vec![],
-    });
+    };
 
     let address = tester.accounts.new_account(&"test".into()).unwrap();
     let signature = tester
         .accounts
-        .sign(address, Some("test".into()), t.signature_hash(None))
+        .sign(address, Some("test".into()), t.hash(None))
         .unwrap();
     let t = t.with_signature(signature, None);
 
@@ -373,7 +361,6 @@ fn should_confirm_transaction_with_token() {
         .signer
         .add_request(
             ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: address,
                 used_default_from: false,
                 to: Some(recipient),
@@ -383,23 +370,22 @@ fn should_confirm_transaction_with_token() {
                 data: vec![],
                 nonce: None,
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
         .unwrap();
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::zero(),
         gas_price: U256::from(0x1000),
         gas: U256::from(10_000_000),
         action: Action::Call(recipient),
         value: U256::from(0x1),
         data: vec![],
-    });
+    };
     let (signature, token) = tester
         .accounts
-        .sign_with_token(address, "test".into(), t.signature_hash(None))
+        .sign_with_token(address, "test".into(), t.hash(None))
         .unwrap();
     let t = t.with_signature(signature, None);
 
@@ -441,7 +427,6 @@ fn should_confirm_transaction_with_rlp() {
         .signer
         .add_request(
             ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: address,
                 used_default_from: false,
                 to: Some(recipient),
@@ -451,26 +436,25 @@ fn should_confirm_transaction_with_rlp() {
                 data: vec![],
                 nonce: None,
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
         .unwrap();
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::zero(),
         gas_price: U256::from(0x1000),
         gas: U256::from(10_000_000),
         action: Action::Call(recipient),
         value: U256::from(0x1),
         data: vec![],
-    });
+    };
     let signature = tester
         .accounts
-        .sign(address, Some("test".into()), t.signature_hash(None))
+        .sign(address, Some("test".into()), t.hash(None))
         .unwrap();
     let t = t.with_signature(signature, None);
-    let rlp = t.encode();
+    let rlp = encode(&t);
 
     assert_eq!(tester.signer.requests().len(), 1);
 
@@ -507,7 +491,6 @@ fn should_return_error_when_sender_does_not_match() {
         .signer
         .add_request(
             ConfirmationPayload::SendTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: Address::default(),
                 used_default_from: false,
                 to: Some(recipient),
@@ -517,30 +500,26 @@ fn should_return_error_when_sender_does_not_match() {
                 data: vec![],
                 nonce: None,
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
         .unwrap();
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::zero(),
         gas_price: U256::from(0x1000),
         gas: U256::from(10_000_000),
         action: Action::Call(recipient),
         value: U256::from(0x1),
         data: vec![],
-    });
+    };
     tester
         .accounts
         .unlock_account_temporarily(address, "test".into())
         .unwrap();
-    let signature = tester
-        .accounts
-        .sign(address, None, t.signature_hash(None))
-        .unwrap();
+    let signature = tester.accounts.sign(address, None, t.hash(None)).unwrap();
     let t = t.with_signature(signature, None);
-    let rlp = t.encode();
+    let rlp = encode(&t);
 
     assert_eq!(tester.signer.requests().len(), 1);
 
@@ -574,7 +553,6 @@ fn should_confirm_sign_transaction_with_rlp() {
         .signer
         .add_request(
             ConfirmationPayload::SignTransaction(FilledTransactionRequest {
-                tx_type: Default::default(),
                 from: address,
                 used_default_from: false,
                 to: Some(recipient),
@@ -584,27 +562,26 @@ fn should_confirm_sign_transaction_with_rlp() {
                 data: vec![],
                 nonce: None,
                 condition: None,
-                access_list: None,
             }),
             Origin::Unknown,
         )
         .unwrap();
     assert_eq!(tester.signer.requests().len(), 1);
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::zero(),
         gas_price: U256::from(0x1000),
         gas: U256::from(10_000_000),
         action: Action::Call(recipient),
         value: U256::from(0x1),
         data: vec![],
-    });
+    };
     let signature = tester
         .accounts
-        .sign(address, Some("test".into()), t.signature_hash(None))
+        .sign(address, Some("test".into()), t.hash(None))
         .unwrap();
     let t = SignedTransaction::new(t.with_signature(signature.clone(), None)).unwrap();
-    let rlp = t.encode();
+    let rlp = encode(&t);
 
     // when
     let request = r#"{

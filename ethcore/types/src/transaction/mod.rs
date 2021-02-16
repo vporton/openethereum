@@ -18,6 +18,5 @@
 
 mod error;
 mod transaction;
-mod transaction_id;
 
-pub use self::{error::Error, transaction::*, transaction_id::*};
+pub use self::{error::Error, transaction::*};

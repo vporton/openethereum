@@ -15,9 +15,7 @@
 // along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp::min;
-use types::transaction::{
-    AccessListTx, Action, SignedTransaction, Transaction, TypedTransaction, TypedTxId,
-};
+use types::transaction::{Action, SignedTransaction, Transaction};
 
 use ethereum_types::U256;
 use jsonrpc_core::Error;
@@ -27,20 +25,14 @@ pub fn sign_call(request: CallRequest) -> Result<SignedTransaction, Error> {
     let max_gas = U256::from(500_000_000);
     let gas = min(request.gas.unwrap_or(max_gas), max_gas);
     let from = request.from.unwrap_or_default();
-    let tx_legacy = Transaction {
+
+    Ok(Transaction {
         nonce: request.nonce.unwrap_or_default(),
         action: request.to.map_or(Action::Create, Action::Call),
         gas,
         gas_price: request.gas_price.unwrap_or_default(),
         value: request.value.unwrap_or_default(),
         data: request.data.unwrap_or_default(),
-    };
-    let tx_typed = match request.tx_type {
-        TypedTxId::Legacy => TypedTransaction::Legacy(tx_legacy),
-        TypedTxId::AccessList => TypedTransaction::AccessList(AccessListTx::new(
-            tx_legacy,
-            request.access_list.unwrap_or_default(),
-        )),
-    };
-    Ok(tx_typed.fake_sign(from))
+    }
+    .fake_sign(from))
 }

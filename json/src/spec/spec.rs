@@ -38,7 +38,6 @@ pub enum ForkSpec {
     ByzantiumToConstantinopleAt5,
     ByzantiumToConstantinopleFixAt5,
     Berlin,
-    Yolo3,
 }
 
 /// Spec deserialization.

@@ -21,7 +21,9 @@ use ethcore::client::TestBlockChainClient;
 use ethereum_types::{Address, U256};
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
-use types::transaction::{Action, Transaction, TypedTransaction};
+use rlp;
+use rustc_hex::ToHex;
+use types::transaction::{Action, Transaction};
 
 use jsonrpc_core::IoHandler;
 use v1::{
@@ -115,7 +117,7 @@ fn rpc_eth_send_transaction() {
 		"id": 1
 	}"#;
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::zero(),
         gas_price: U256::from(0x9184e72a000u64),
         gas: U256::from(0x76c0),
@@ -124,10 +126,10 @@ fn rpc_eth_send_transaction() {
         ),
         value: U256::from(0x9184e72au64),
         data: vec![],
-    });
+    };
     let signature = tester
         .accounts_provider
-        .sign(address, None, t.signature_hash(None))
+        .sign(address, None, t.hash(None))
         .unwrap();
     let t = t.with_signature(signature, None);
 
@@ -139,7 +141,7 @@ fn rpc_eth_send_transaction() {
 
     tester.miner.increment_nonce(&address);
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::one(),
         gas_price: U256::from(0x9184e72a000u64),
         gas: U256::from(0x76c0),
@@ -148,10 +150,10 @@ fn rpc_eth_send_transaction() {
         ),
         value: U256::from(0x9184e72au64),
         data: vec![],
-    });
+    };
     let signature = tester
         .accounts_provider
-        .sign(address, None, t.signature_hash(None))
+        .sign(address, None, t.hash(None))
         .unwrap();
     let t = t.with_signature(signature, None);
 
@@ -164,7 +166,6 @@ fn rpc_eth_send_transaction() {
 
 #[test]
 fn rpc_eth_sign_transaction() {
-    use rustc_hex::ToHex;
     let tester = EthTester::default();
     let address = tester.accounts_provider.new_account(&"".into()).unwrap();
     tester
@@ -187,7 +188,7 @@ fn rpc_eth_sign_transaction() {
 		"id": 1
 	}"#;
 
-    let t = TypedTransaction::Legacy(Transaction {
+    let t = Transaction {
         nonce: U256::one(),
         gas_price: U256::from(0x9184e72a000u64),
         gas: U256::from(0x76c0),
@@ -196,14 +197,14 @@ fn rpc_eth_sign_transaction() {
         ),
         value: U256::from(0x9184e72au64),
         data: vec![],
-    });
+    };
     let signature = tester
         .accounts_provider
-        .sign(address, None, t.signature_hash(None))
+        .sign(address, None, t.hash(None))
         .unwrap();
     let t = t.with_signature(signature, None);
     let signature = t.signature();
-    let rlp = t.encode();
+    let rlp = rlp::encode(&t);
 
     let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned()
         + r#""raw":"0x"#

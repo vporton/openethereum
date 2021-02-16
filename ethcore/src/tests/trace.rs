@@ -16,20 +16,22 @@
 
 //! Client tests of tracing
 
+use std::sync::Arc;
+
+use ethereum_types::{Address, U256};
+use hash::keccak;
+
 use block::*;
 use client::{BlockChainClient, Client, ClientConfig, *};
-use ethereum_types::{Address, U256};
 use ethkey::KeyPair;
-use hash::keccak;
 use io::*;
 use miner::Miner;
 use spec::*;
-use std::sync::Arc;
 use test_helpers::{self, get_temp_state_db};
 use trace::{trace::Action::Reward, LocalizedTrace, RewardType};
 use types::{
     header::Header,
-    transaction::{Action, Transaction, TypedTransaction},
+    transaction::{Action, Transaction},
     view,
     views::BlockView,
 };
@@ -171,14 +173,14 @@ fn can_trace_block_and_uncle_reward() {
     for _ in 0..1 {
         block
             .push_transaction(
-                TypedTransaction::Legacy(Transaction {
+                Transaction {
                     nonce: n.into(),
                     gas_price: 10000.into(),
                     gas: 100000.into(),
                     action: Action::Create,
                     data: vec![],
                     value: U256::zero(),
-                })
+                }
                 .sign(kp.secret(), Some(spec.network_id())),
                 None,
             )

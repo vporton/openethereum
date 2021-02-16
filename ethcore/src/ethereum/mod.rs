@@ -158,6 +158,11 @@ pub fn new_sokol<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
     )
 }
 
+/// Create BSC chain spec.
+pub fn new_bsc<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+    load(params.into(), include_bytes!("../../res/ethereum/bsc.json"))
+}
+
 // For tests
 
 /// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
@@ -250,11 +255,6 @@ pub fn new_byzantium_to_constantinoplefixat5_test() -> Spec {
 /// Create a new Foundation Berlin era spec.
 pub fn new_berlin_test() -> Spec {
     load(None, include_bytes!("../../res/ethereum/berlin_test.json"))
-}
-
-/// Create a new YOLO spec
-pub fn new_yolo3_test() -> Spec {
-    load(None, include_bytes!("../../res/ethereum/yolo3_test.json"))
 }
 
 /// Create a new Musicoin-MCIP3-era spec.

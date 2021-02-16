@@ -84,8 +84,6 @@ pub enum Error {
     TooBig,
     /// Invalid RLP encoding
     InvalidRlp(String),
-    /// Transaciton is still not enabled.
-    TransactionTypeNotEnabled,
 }
 
 impl From<ethkey::Error> for Error {
@@ -135,9 +133,6 @@ impl fmt::Display for Error {
             }
             TooBig => "Transaction too big".into(),
             InvalidRlp(ref err) => format!("Transaction has invalid RLP structure: {}.", err),
-            TransactionTypeNotEnabled => {
-                format!("Transaction type is not enabled for current block")
-            }
         };
 
         f.write_fmt(format_args!("Transaction error ({})", msg))

@@ -24,8 +24,8 @@ use std::{cmp, sync::Arc};
 use trace::{Tracer, VMTracer};
 use types::transaction::UNSIGNED_SENDER;
 use vm::{
-    self, AccessList, ActionParams, ActionValue, CallType, ContractCreateResult,
-    CreateContractAddress, EnvInfo, Ext, MessageCallResult, ReturnData, Schedule, TrapKind,
+    self, ActionParams, ActionValue, CallType, ContractCreateResult, CreateContractAddress,
+    EnvInfo, Ext, MessageCallResult, ReturnData, Schedule, TrapKind,
 };
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -200,11 +200,10 @@ where
                 data: Some(H256::from(number).to_vec()),
                 call_type: CallType::Call,
                 params_type: vm::ParamsType::Separate,
-                access_list: AccessList::default(),
             };
 
             let mut ex = Executive::new(self.state, self.env_info, self.machine, self.schedule);
-            let r = ex.call_with_stack_depth(
+            let r = ex.call_with_crossbeam(
                 params,
                 self.substate,
                 self.stack_depth + 1,
@@ -289,7 +288,6 @@ where
             data: None,
             call_type: CallType::None,
             params_type: vm::ParamsType::Embedded,
-            access_list: self.substate.access_list.clone(),
         };
 
         if !self.static_flag {
@@ -314,7 +312,7 @@ where
             self.depth,
             self.static_flag,
         );
-        let out = ex.create_with_stack_depth(
+        let out = ex.create_with_crossbeam(
             params,
             self.substate,
             self.stack_depth + 1,
@@ -322,15 +320,6 @@ where
             self.vm_tracer,
         );
         Ok(into_contract_create_result(out, &address, self.substate))
-    }
-
-    fn calc_address(&self, code: &[u8], address_scheme: CreateContractAddress) -> Option<Address> {
-        match self.state.nonce(&self.origin_info.address) {
-            Ok(nonce) => {
-                Some(contract_address(address_scheme, &self.origin_info.address, &nonce, &code).0)
-            }
-            Err(_) => None,
-        }
     }
 
     fn call(
@@ -369,7 +358,6 @@ where
             data: Some(data.to_vec()),
             call_type: call_type,
             params_type: vm::ParamsType::Separate,
-            access_list: self.substate.access_list.clone(),
         };
 
         if let Some(value) = value {
@@ -388,7 +376,7 @@ where
             self.depth,
             self.static_flag,
         );
-        let out = ex.call_with_stack_depth(
+        let out = ex.call_with_crossbeam(
             params,
             self.substate,
             self.stack_depth + 1,
@@ -529,26 +517,6 @@ where
 
     fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
         self.vm_tracer.trace_executed(gas_used, stack_push, mem)
-    }
-
-    fn al_is_enabled(&self) -> bool {
-        self.substate.access_list.is_enabled()
-    }
-
-    fn al_contains_storage_key(&self, address: &Address, key: &H256) -> bool {
-        self.substate.access_list.contains_storage_key(address, key)
-    }
-
-    fn al_insert_storage_key(&mut self, address: Address, key: H256) {
-        self.substate.access_list.insert_storage_key(address, key)
-    }
-
-    fn al_contains_address(&self, address: &Address) -> bool {
-        self.substate.access_list.contains_address(address)
-    }
-
-    fn al_insert_address(&mut self, address: Address) {
-        self.substate.access_list.insert_address(address)
     }
 }
 

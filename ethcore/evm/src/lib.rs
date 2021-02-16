@@ -17,26 +17,34 @@
 //! Ethereum virtual machine.
 
 extern crate bit_set;
-extern crate ethcore_builtin as builtin;
 extern crate ethereum_types;
 extern crate heapsize;
+#[cfg(test)]
+extern crate hex_literal;
 extern crate keccak_hash as hash;
+#[macro_use]
+extern crate lazy_static;
+#[cfg_attr(feature = "evm-debug", macro_use)]
+extern crate log;
 extern crate memory_cache;
 extern crate num_bigint;
 extern crate parity_bytes as bytes;
 extern crate parking_lot;
-extern crate vm;
-
-#[macro_use]
-extern crate lazy_static;
-
-#[cfg_attr(feature = "evm-debug", macro_use)]
-extern crate log;
-
-#[cfg(test)]
-extern crate hex_literal;
 #[cfg(test)]
 extern crate rustc_hex;
+extern crate vm;
+
+pub use vm::{
+    ActionParams, CallType, CleanDustMode, ContractCreateResult, CreateContractAddress, EnvInfo,
+    Ext, GasLeft, MessageCallResult, ReturnData, Schedule,
+};
+
+pub use self::{
+    evm::{CostType, FinalizationResult, Finalize},
+    factory::Factory,
+    instructions::{Instruction, InstructionInfo},
+    vmtype::VMType,
+};
 
 pub mod evm;
 pub mod interpreter;
@@ -48,14 +56,3 @@ mod vmtype;
 
 #[cfg(test)]
 mod tests;
-
-pub use self::{
-    evm::{CostType, FinalizationResult, Finalize},
-    factory::Factory,
-    instructions::{Instruction, InstructionInfo},
-    vmtype::VMType,
-};
-pub use vm::{
-    ActionParams, CallType, CleanDustMode, ContractCreateResult, CreateContractAddress, EnvInfo,
-    Ext, GasLeft, MessageCallResult, ReturnData, Schedule,
-};

@@ -19,6 +19,11 @@ use std::{
     sync::Arc,
 };
 
+use ethereum_types::{Address, U256};
+use hash::keccak;
+use rustc_hex::ToHex;
+use tempdir::TempDir;
+
 use client::{
     traits::{
         BlockChainClient, BlockChainReset, BlockInfo, ChainInfo, ImportBlock, ImportExportBlocks,
@@ -26,16 +31,12 @@ use client::{
     Client, ClientConfig, ImportSealedBlock, PrepareOpenBlock,
 };
 use ethereum;
-use ethereum_types::{Address, U256};
 use ethkey::KeyPair;
 use executive::{Executive, TransactOptions};
-use hash::keccak;
 use io::IoChannel;
 use miner::{Miner, MinerService, PendingOrdering};
-use rustc_hex::ToHex;
 use spec::Spec;
 use state::{self, CleanupMode, State, StateInfo};
-use tempdir::TempDir;
 use test_helpers::{
     self, generate_dummy_client, generate_dummy_client_with_data, get_bad_state_dummy_block,
     get_good_dummy_block, get_good_dummy_block_seq, get_test_client_with_blocks,
@@ -45,7 +46,7 @@ use types::{
     data_format::DataFormat,
     filter::Filter,
     ids::BlockId,
-    transaction::{Action, Condition, PendingTransaction, Transaction, TypedTransaction},
+    transaction::{Action, Condition, PendingTransaction, Transaction},
     view,
     views::BlockView,
 };
@@ -278,7 +279,7 @@ fn can_handle_long_fork() {
     push_blocks_to_client(&client, 49, 1201, 800);
     push_blocks_to_client(&client, 53, 1201, 600);
 
-    for _ in 0..2300 {
+    for _ in 0..400 {
         client.import_verified_blocks();
     }
     assert_eq!(2000, client.chain_info().best_block_number);
@@ -362,26 +363,26 @@ fn does_not_propagate_delayed_transactions() {
     let key = KeyPair::from_secret(keccak("test").into()).unwrap();
     let secret = key.secret();
     let tx0 = PendingTransaction::new(
-        TypedTransaction::Legacy(Transaction {
+        Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 21000.into(),
             action: Action::Call(Address::default()),
             value: 0.into(),
             data: Vec::new(),
-        })
+        }
         .sign(secret, None),
         Some(Condition::Number(2)),
     );
     let tx1 = PendingTransaction::new(
-        TypedTransaction::Legacy(Transaction {
+        Transaction {
             nonce: 1.into(),
             gas_price: 0.into(),
             gas: 21000.into(),
             action: Action::Call(Address::default()),
             value: 0.into(),
             data: Vec::new(),
-        })
+        }
         .sign(secret, None),
         None,
     );
@@ -443,14 +444,14 @@ fn transaction_proof() {
         client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
     }
 
-    let transaction = TypedTransaction::Legacy(Transaction {
+    let transaction = Transaction {
         nonce: 0.into(),
         gas_price: 0.into(),
         gas: 21000.into(),
         action: Action::Call(Address::default()),
         value: 5.into(),
         data: Vec::new(),
-    })
+    }
     .fake_sign(address);
 
     let proof = client
@@ -471,6 +472,7 @@ fn transaction_proof() {
         .transact(
             &transaction,
             TransactOptions::with_no_tracing().dont_check_nonce(),
+            false,
         )
         .unwrap();
 

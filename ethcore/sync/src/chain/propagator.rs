@@ -21,7 +21,7 @@ use ethereum_types::H256;
 use fastmap::H256FastSet;
 use network::{client_version::ClientCapabilities, PeerId};
 use rand::Rng;
-use rlp::RlpStream;
+use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
 use types::{blockchain_info::BlockChainInfo, transaction::SignedTransaction, BlockNumber};
 
@@ -39,7 +39,7 @@ use super::{
 pub struct SyncPropagator;
 
 impl SyncPropagator {
-    // t_nb 11.4.3 propagates latest block to a set of peers
+    /// propagates latest block to a set of peers
     pub fn propagate_blocks(
         sync: &mut ChainSync,
         chain_info: &BlockChainInfo,
@@ -72,7 +72,7 @@ impl SyncPropagator {
         sent
     }
 
-    // t_nb 11.4.2 propagates new known hashes to all peers
+    /// propagates new known hashes to all peers
     pub fn propagate_new_hashes(
         sync: &mut ChainSync,
         chain_info: &BlockChainInfo,
@@ -121,7 +121,7 @@ impl SyncPropagator {
         let (transactions, service_transactions): (Vec<_>, Vec<_>) = transactions
             .iter()
             .map(|tx| tx.signed())
-            .partition(|tx| !tx.tx().gas_price.is_zero());
+            .partition(|tx| !tx.gas_price.is_zero());
 
         // usual transactions could be propagated to all peers
         let mut affected_peers = HashSet::new();
@@ -171,7 +171,7 @@ impl SyncPropagator {
         let all_transactions_rlp = {
             let mut packet = RlpStream::new_list(transactions.len());
             for tx in &transactions {
-                tx.rlp_append(&mut packet);
+                packet.append(&**tx);
             }
             packet.out()
         };
@@ -238,8 +238,13 @@ impl SyncPropagator {
                 for tx in &transactions {
                     let hash = tx.hash();
                     if to_send.contains(&hash) {
-                        let appended =
-                            packet.append_raw_checked(&tx.encode(), 1, MAX_TRANSACTION_PACKET_SIZE);
+                        let mut transaction = RlpStream::new();
+                        tx.rlp_append(&mut transaction);
+                        let appended = packet.append_raw_checked(
+                            &transaction.drain(),
+                            1,
+                            MAX_TRANSACTION_PACKET_SIZE,
+                        );
                         if !appended {
                             // Maximal packet size reached just proceed with sending
                             debug!(target: "sync", "Transaction packet size limit reached. Sending incomplete set of {}/{} transactions.", pushed, to_send.len());
@@ -274,7 +279,6 @@ impl SyncPropagator {
         sent_to_peers
     }
 
-    // t_nb 11.4.1 propagate latest blocks to peers
     pub fn propagate_latest_blocks(sync: &mut ChainSync, io: &mut dyn SyncIo, sealed: &[H256]) {
         let chain_info = io.chain().chain_info();
         if (((chain_info.best_block_number as i64) - (sync.last_sent_block_number as i64)).abs()
@@ -283,19 +287,15 @@ impl SyncPropagator {
         {
             let peers = sync.get_lagging_peers(&chain_info);
             if sealed.is_empty() {
-                // t_nb 11.4.2
                 let hashes = SyncPropagator::propagate_new_hashes(sync, &chain_info, io, &peers);
                 let peers = ChainSync::select_random_peers(&peers);
-                // t_nb 11.4.3
                 let blocks =
                     SyncPropagator::propagate_blocks(sync, &chain_info, io, sealed, &peers);
                 if blocks != 0 || hashes != 0 {
                     trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
                 }
             } else {
-                // t_nb 11.4.3
                 SyncPropagator::propagate_blocks(sync, &chain_info, io, sealed, &peers);
-                // t_nb 11.4.2
                 SyncPropagator::propagate_new_hashes(sync, &chain_info, io, &peers);
                 trace!(target: "sync", "Sent sealed block to all peers");
             };
@@ -303,7 +303,7 @@ impl SyncPropagator {
         sync.last_sent_block_number = chain_info.best_block_number;
     }
 
-    // t_nb 11.4.4 Distribute valid proposed blocks to subset of current peers. (if there is any proposed)
+    /// Distribute valid proposed blocks to subset of current peers.
     pub fn propagate_proposed_blocks(
         sync: &mut ChainSync,
         io: &mut dyn SyncIo,
@@ -368,7 +368,6 @@ mod tests {
     use rlp::Rlp;
     use std::collections::VecDeque;
     use tests::{helpers::TestIo, snapshot::TestSnapshotService};
-    use types::transaction::TypedTransaction;
 
     use super::{
         super::{tests::*, *},
@@ -703,9 +702,7 @@ mod tests {
                     return None;
                 }
 
-                rlp.at(0)
-                    .ok()
-                    .and_then(|r| TypedTransaction::decode_rlp(&r).ok())
+                rlp.at(0).ok().and_then(|r| r.as_val().ok())
             })
             .collect();
         assert_eq!(sent_transactions.len(), 2);

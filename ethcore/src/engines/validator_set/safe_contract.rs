@@ -25,7 +25,7 @@ use kvdb::DBValue;
 use memory_cache::MemoryLruCache;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
-use types::{header::Header, ids::BlockId, log_entry::LogEntry, receipt::TypedReceipt};
+use types::{header::Header, ids::BlockId, log_entry::LogEntry, receipt::Receipt};
 use unexpected::Mismatch;
 
 use super::{simple_list::SimpleList, SystemCall, ValidatorSet};
@@ -91,7 +91,7 @@ fn check_first_proof(
     old_header: Header,
     state_items: &[DBValue],
 ) -> Result<Vec<Address>, String> {
-    use types::transaction::{Action, Transaction, TypedTransaction};
+    use types::transaction::{Action, Transaction};
 
     // TODO: match client contract_call_tx more cleanly without duplication.
     const PROVIDED_GAS: u64 = 50_000_000;
@@ -116,14 +116,14 @@ fn check_first_proof(
     let (data, decoder) = validator_set::functions::get_validators::call();
 
     let from = Address::default();
-    let tx = TypedTransaction::Legacy(Transaction {
+    let tx = Transaction {
         nonce: machine.account_start_nonce(number),
         action: Action::Call(contract_address),
         gas: PROVIDED_GAS.into(),
         gas_price: U256::default(),
         value: U256::default(),
         data,
-    })
+    }
     .fake_sign(from);
 
     let res = ::state::check_proof(
@@ -161,15 +161,14 @@ fn decode_first_proof(rlp: &Rlp) -> Result<(Header, Vec<DBValue>), ::error::Erro
 // inter-contract proofs are a header and receipts.
 // checking will involve ensuring that the receipts match the header and
 // extracting the validator set from the receipts.
-fn encode_proof(header: &Header, receipts: &[TypedReceipt]) -> Bytes {
+fn encode_proof(header: &Header, receipts: &[Receipt]) -> Bytes {
     let mut stream = RlpStream::new_list(2);
-    stream.append(header);
-    TypedReceipt::rlp_append_list(&mut stream, receipts);
+    stream.append(header).append_list(receipts);
     stream.drain()
 }
 
-fn decode_proof(rlp: &Rlp) -> Result<(Header, Vec<TypedReceipt>), ::error::Error> {
-    Ok((rlp.val_at(0)?, TypedReceipt::decode_rlp_list(&rlp.at(1)?)?))
+fn decode_proof(rlp: &Rlp) -> Result<(Header, Vec<Receipt>), ::error::Error> {
+    Ok((rlp.val_at(0)?, rlp.list_at(1)?))
 }
 
 // given a provider and caller, generate proof. this will just be a state proof
@@ -266,7 +265,7 @@ impl ValidatorSafeContract {
         &self,
         bloom: Bloom,
         header: &Header,
-        receipts: &[TypedReceipt],
+        receipts: &[Receipt],
     ) -> Option<SimpleList> {
         let check_log = |log: &LogEntry| {
             log.address == self.contract_address
@@ -407,7 +406,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
             // ensure receipts match header.
             // TODO: optimize? these were just decoded.
-            let found_root = ::triehash::ordered_trie_root(receipts.iter().map(|r| r.encode()));
+            let found_root = ::triehash::ordered_trie_root(receipts.iter().map(::rlp::encode));
             if found_root != *old_header.receipts_root() {
                 return Err(::error::BlockError::InvalidReceiptsRoot(Mismatch {
                     expected: *old_header.receipts_root(),
@@ -492,7 +491,7 @@ mod tests {
     use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
     use types::{
         ids::BlockId,
-        transaction::{Action, Transaction, TypedTransaction},
+        transaction::{Action, Transaction},
     };
     use verification::queue::kind::blocks::Unverified;
 
@@ -538,7 +537,7 @@ mod tests {
 
         client.miner().set_author(miner::Author::Sealer(signer));
         // Remove "1" validator.
-        let tx = TypedTransaction::Legacy(Transaction {
+        let tx = Transaction {
             nonce: 0.into(),
             gas_price: 0.into(),
             gas: 500_000.into(),
@@ -547,7 +546,7 @@ mod tests {
             data: "bfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&s0, Some(chain_id));
         client
             .miner()
@@ -556,7 +555,7 @@ mod tests {
         EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
         assert_eq!(client.chain_info().best_block_number, 1);
         // Add "1" validator back in.
-        let tx = TypedTransaction::Legacy(Transaction {
+        let tx = Transaction {
             nonce: 1.into(),
             gas_price: 0.into(),
             gas: 500_000.into(),
@@ -565,7 +564,7 @@ mod tests {
             data: "4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1"
                 .from_hex()
                 .unwrap(),
-        })
+        }
         .sign(&s0, Some(chain_id));
         client
             .miner()
@@ -583,14 +582,14 @@ mod tests {
         // Switch back to the added validator, since the state is updated.
         let signer = Box::new((tap.clone(), v1, "".into()));
         client.miner().set_author(miner::Author::Sealer(signer));
-        let tx = TypedTransaction::Legacy(Transaction {
+        let tx = Transaction {
             nonce: 2.into(),
             gas_price: 0.into(),
             gas: 21000.into(),
             action: Action::Call(Address::default()),
             value: 0.into(),
             data: Vec::new(),
-        })
+        }
         .sign(&s0, Some(chain_id));
         client
             .miner()
